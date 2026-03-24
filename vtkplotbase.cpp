@@ -124,13 +124,14 @@ void vtkPlotBase::setupVTK()
     renderWindow->GetInteractor()->SetInteractorStyle(style);
 }
 
+// 保存默认相机参数（用于重置视角）
 void vtkPlotBase::saveDefaultCamera()
 {
     vtkCamera *camera = m_renderer->GetActiveCamera();
-    camera->GetPosition(m_defaultCameraPosition);
-    camera->GetFocalPoint(m_defaultCameraFocalPoint);
-    camera->GetViewUp(m_defaultCameraViewUp);
-    m_defaultCameraDistance = camera->GetDistance();
+    camera->GetPosition(m_defaultCameraPosition);      // 相机位置
+    camera->GetFocalPoint(m_defaultCameraFocalPoint);  // 焦点
+    camera->GetViewUp(m_defaultCameraViewUp);          // 上方向
+    m_defaultCameraDistance = camera->GetDistance();   // 距离
     
     qDebug() << "Default camera saved: pos =" 
              << m_defaultCameraPosition[0] << m_defaultCameraPosition[1] << m_defaultCameraPosition[2];
@@ -229,7 +230,7 @@ void vtkPlotBase::updateLegend()
 {
     int entryCount = 0;
     
-    // Count visible items with names
+    // 统计有名称且可见的条目数量
     for (auto it = m_curves.begin(); it != m_curves.end(); ++it) {
         if (it->visible && !it->name.isEmpty()) {
             entryCount++;
@@ -241,23 +242,24 @@ void vtkPlotBase::updateLegend()
         }
     }
     
+    // 如果没有条目，清空图例并返回
     if (entryCount == 0) {
         m_legendActor->SetNumberOfEntries(0);
         render();
         return;
     }
     
-    // Set number of entries
+    // 设置条目数量
     m_legendActor->SetNumberOfEntries(entryCount);
     
     int entry = 0;
     
-    // Create a simple line symbol for curves
-    // Symbol: 0-0.5, Gap: 0.5-1.0 (30% spacing)
+    // 创建曲线符号（线条）
+    // 符号范围：0-0.5，间距：0.5-1.0（右侧留50%空白）
     vtkSmartPointer<vtkPoints> linePts = vtkSmartPointer<vtkPoints>::New();
     linePts->InsertNextPoint(0, 0, 0);
     linePts->InsertNextPoint(0.5, 0, 0);
-    linePts->InsertNextPoint(1.0, 0, 0);  // Right extent for spacing
+    linePts->InsertNextPoint(1.0, 0, 0);  // 右侧扩展点，用于创建间距
     
     vtkSmartPointer<vtkPolyLine> lineCell = vtkSmartPointer<vtkPolyLine>::New();
     lineCell->GetPointIds()->SetNumberOfIds(2);
@@ -271,7 +273,7 @@ void vtkPlotBase::updateLegend()
     lineSymbol->SetPoints(linePts);
     lineSymbol->SetLines(lineCells);
     
-    // Add curves to legend
+    // 将曲线添加到图例
     for (auto it = m_curves.begin(); it != m_curves.end(); ++it) {
         if (it->visible && !it->name.isEmpty()) {
             double color[3];
@@ -280,29 +282,29 @@ void vtkPlotBase::updateLegend()
         }
     }
     
-    // Create symbols for markers
-    // Symbol: 0-0.5, Gap: 0.5-1.0 (30% spacing)
+    // 创建标记符号
+    // 符号范围：0-0.5，间距：0.5-1.0（右侧留50%空白）
     
-    // Filled circle symbol for filled markers
+    // 填充圆符号（用于填充标记）
     vtkSmartPointer<vtkRegularPolygonSource> filledCircleSource = vtkSmartPointer<vtkRegularPolygonSource>::New();
     filledCircleSource->SetNumberOfSides(16);
     filledCircleSource->SetRadius(0.25);
     filledCircleSource->SetCenter(0.25, 0, 0);
     filledCircleSource->Update();
     
-    // Add right extent point for spacing
+    // 添加右侧扩展点用于创建间距
     vtkSmartPointer<vtkPolyData> filledCircleSymbol = vtkSmartPointer<vtkPolyData>::New();
     filledCircleSymbol->DeepCopy(filledCircleSource->GetOutput());
     filledCircleSymbol->GetPoints()->InsertNextPoint(1.0, 0, 0);
     
-    // Hollow ring symbol for hollow markers
+    // 空心环符号（用于空心标记）
     vtkSmartPointer<vtkDiskSource> hollowRingSource = vtkSmartPointer<vtkDiskSource>::New();
     hollowRingSource->SetInnerRadius(0.15);
     hollowRingSource->SetOuterRadius(0.25);
     hollowRingSource->SetCircumferentialResolution(16);
     hollowRingSource->Update();
     
-    // Transform to center at (0.25, 0, 0)
+    // 变换：将圆心移动到 (0.25, 0, 0)
     vtkSmartPointer<vtkTransform> ringTransform = vtkSmartPointer<vtkTransform>::New();
     ringTransform->Translate(0.25, 0, 0);
     vtkSmartPointer<vtkTransformPolyDataFilter> ringTransformFilter = vtkSmartPointer<vtkTransformPolyDataFilter>::New();
@@ -310,18 +312,18 @@ void vtkPlotBase::updateLegend()
     ringTransformFilter->SetTransform(ringTransform);
     ringTransformFilter->Update();
     
-    // Add right extent point for spacing
+    // 添加右侧扩展点用于创建间距
     vtkSmartPointer<vtkPolyData> hollowRingSymbol = vtkSmartPointer<vtkPolyData>::New();
     hollowRingSymbol->DeepCopy(ringTransformFilter->GetOutput());
     hollowRingSymbol->GetPoints()->InsertNextPoint(1.0, 0, 0);
     
-    // Add markers to legend
+    // 将标记添加到图例
     for (auto it = m_markers.begin(); it != m_markers.end(); ++it) {
         if (it->visible && !it->name.isEmpty()) {
             double color[3];
             it->follower->GetProperty()->GetColor(color);
             
-            // Use different symbol based on marker type
+            // 根据标记类型使用不同符号
             if (it->filled) {
                 m_legendActor->SetEntry(entry++, filledCircleSymbol, it->name.toUtf8().constData(), color);
             } else {
@@ -330,12 +332,13 @@ void vtkPlotBase::updateLegend()
         }
     }
     
-    // Update position based on setting
+    // 根据设置更新图例位置
     updateLegendPosition();
     
     render();
 }
 
+// 更新图例位置（根据当前位置设置）
 void vtkPlotBase::updateLegendPosition()
 {
     switch (m_legendPosition) {
@@ -354,11 +357,13 @@ void vtkPlotBase::updateLegendPosition()
     }
 }
 
+// 生成唯一ID（UUID格式）
 QString vtkPlotBase::generateId()
 {
     return QUuid::createUuid().toString(QUuid::WithoutBraces);
 }
 
+// 更新坐标轴边界（将当前范围应用到坐标轴）
 void vtkPlotBase::updateAxesBounds()
 {
     qDebug() << "updateAxesBounds: Setting bounds to"
@@ -366,10 +371,10 @@ void vtkPlotBase::updateAxesBounds()
              << "Y[" << m_yMin << "," << m_yMax << "]"
              << "Z[" << m_zMin << "," << m_zMax << "]";
     
-    // Set the cube bounds (physical extent in 3D space)
+    // 设置立方体边界（三维空间中的物理范围）
     m_cubeAxesActor->SetBounds(m_xMin, m_xMax, m_yMin, m_yMax, m_zMin, m_zMax);
     
-    // Set the axis ranges (label values)
+    // 设置坐标轴标签范围
     m_cubeAxesActor->SetXAxisRange(m_xMin, m_xMax);
     m_cubeAxesActor->SetYAxisRange(m_yMin, m_yMax);
     m_cubeAxesActor->SetZAxisRange(m_zMin, m_zMax);
@@ -378,9 +383,10 @@ void vtkPlotBase::updateAxesBounds()
     render();
 }
 
+// 计算数据边界（遍历所有曲线和标记）
 void vtkPlotBase::computeDataBounds(double &xMin, double &xMax, double &yMin, double &yMax, double &zMin, double &zMax)
 {
-    // Initialize with invalid values
+    // 初始化为无效值
     xMin = std::numeric_limits<double>::max();
     xMax = std::numeric_limits<double>::lowest();
     yMin = std::numeric_limits<double>::max();
@@ -392,7 +398,7 @@ void vtkPlotBase::computeDataBounds(double &xMin, double &xMax, double &yMin, do
     
     qDebug() << "computeDataBounds: curves count =" << m_curves.size() << ", markers count =" << m_markers.size();
     
-    // Compute bounds from curves
+    // 从曲线计算边界
     for (auto it = m_curves.begin(); it != m_curves.end(); ++it) {
         qDebug() << "  Checking curve" << it.key() << "visible =" << it->visible;
         if (!it->visible) continue;
@@ -415,7 +421,7 @@ void vtkPlotBase::computeDataBounds(double &xMin, double &xMax, double &yMin, do
         }
     }
     
-    // Compute bounds from markers
+    // 从标记计算边界
     for (auto it = m_markers.begin(); it != m_markers.end(); ++it) {
         if (!it->visible) continue;
         
@@ -432,7 +438,7 @@ void vtkPlotBase::computeDataBounds(double &xMin, double &xMax, double &yMin, do
         zMax = std::max(zMax, pos[2] + r);
     }
     
-    // If no data, set default range
+    // 如果没有数据，设置默认范围
     if (!hasData) {
         xMin = -1.0; xMax = 1.0;
         yMin = -1.0; yMax = 1.0;
@@ -440,6 +446,7 @@ void vtkPlotBase::computeDataBounds(double &xMin, double &xMax, double &yMin, do
     }
 }
 
+// 自动缩放坐标轴（根据数据范围）
 void vtkPlotBase::autoScaleIfNeeded()
 {
     qDebug() << "autoScaleIfNeeded called, mode =" << static_cast<int>(m_autoScaleMode);
@@ -452,28 +459,28 @@ void vtkPlotBase::autoScaleIfNeeded()
              << "Y[" << yMin << "," << yMax << "]"
              << "Z[" << zMin << "," << zMax << "]";
     
-    // Add margin
+    // 添加边距
     double xRange = xMax - xMin;
     double yRange = yMax - yMin;
     double zRange = zMax - zMin;
     
-    // Handle zero range case
+    // 处理零范围情况
     if (xRange < 1e-10) { xMin -= 1.0; xMax += 1.0; xRange = 2.0; }
     if (yRange < 1e-10) { yMin -= 1.0; yMax += 1.0; yRange = 2.0; }
     if (zRange < 1e-10) { zMin -= 1.0; zMax += 1.0; zRange = 2.0; }
     
     if (m_autoScaleMode == AutoScaleMode::EqualRatio) {
-        // Equal ratio mode: all axes have the same scale
-        // Find the maximum range and apply it to all axes
+        // 等比例模式：所有坐标轴使用相同比例
+        // 找到最大范围并应用到所有轴
         double maxRange = std::max({xRange, yRange, zRange});
         double margin = maxRange * m_autoScaleMargin;
         
-        // Calculate center of each axis
+        // 计算每个轴的中心
         double xCenter = (xMin + xMax) / 2.0;
         double yCenter = (yMin + yMax) / 2.0;
         double zCenter = (zMin + zMax) / 2.0;
         
-        // Apply equal range with margin
+        // 应用相等范围并添加边距
         double halfRange = maxRange / 2.0 + margin;
         m_xMin = xCenter - halfRange;
         m_xMax = xCenter + halfRange;
@@ -484,7 +491,7 @@ void vtkPlotBase::autoScaleIfNeeded()
         
         qDebug() << "EqualRatio mode: maxRange =" << maxRange << "halfRange =" << halfRange;
     } else {
-        // Independent mode: each axis scales independently
+        // 独立模式：每个坐标轴独立缩放
         m_xMin = xMin - xRange * m_autoScaleMargin;
         m_xMax = xMax + xRange * m_autoScaleMargin;
         m_yMin = yMin - yRange * m_autoScaleMargin;
@@ -500,6 +507,7 @@ void vtkPlotBase::autoScaleIfNeeded()
     updateAxesBounds();
 }
 
+// 渲染场景
 void vtkPlotBase::render()
 {
     if (m_vtkWidget && m_vtkWidget->renderWindow()) {
@@ -509,6 +517,7 @@ void vtkPlotBase::render()
 
 // ==================== 坐标系操作 ====================
 
+// 设置坐标轴范围
 void vtkPlotBase::setAxisRange(double xMin, double xMax, double yMin, double yMax, double zMin, double zMax)
 {
     m_xMin = xMin; m_xMax = xMax;
@@ -517,6 +526,7 @@ void vtkPlotBase::setAxisRange(double xMin, double xMax, double yMin, double yMa
     updateAxesBounds();
 }
 
+// 设置坐标轴标题
 void vtkPlotBase::setAxisTitles(const QString &xTitle, const QString &yTitle, const QString &zTitle)
 {
     m_cubeAxesActor->SetXTitle(xTitle.toUtf8().constData());
@@ -525,6 +535,7 @@ void vtkPlotBase::setAxisTitles(const QString &xTitle, const QString &yTitle, co
     render();
 }
 
+// 设置网格线可见性
 void vtkPlotBase::setGridVisible(bool visible)
 {
     if (visible) {
@@ -539,23 +550,27 @@ void vtkPlotBase::setGridVisible(bool visible)
     render();
 }
 
+// 设置背景颜色
 void vtkPlotBase::setBackground(const QColor &color)
 {
     m_renderer->SetBackground(color.redF(), color.greenF(), color.blueF());
     render();
 }
 
+// 设置自动缩放模式
 void vtkPlotBase::setAutoScaleMode(AutoScaleMode mode)
 {
     m_autoScaleMode = mode;
     autoScaleIfNeeded();
 }
 
+// 获取自动缩放模式
 AutoScaleMode vtkPlotBase::autoScaleMode() const
 {
     return m_autoScaleMode;
 }
 
+// 自动适应数据范围
 void vtkPlotBase::autoFit()
 {
     autoScaleIfNeeded();
@@ -563,6 +578,7 @@ void vtkPlotBase::autoFit()
 
 // ==================== 图例操作 ====================
 
+// 设置图例可见性
 void vtkPlotBase::setLegendVisible(bool visible)
 {
     m_legendVisible = visible;
@@ -570,6 +586,7 @@ void vtkPlotBase::setLegendVisible(bool visible)
     render();
 }
 
+// 设置图例位置
 void vtkPlotBase::setLegendPosition(LegendPosition pos)
 {
     m_legendPosition = pos;
@@ -577,6 +594,7 @@ void vtkPlotBase::setLegendPosition(LegendPosition pos)
     render();
 }
 
+// 设置曲线名称（用于图例显示）
 void vtkPlotBase::setCurveName(const QString &curveId, const QString &name)
 {
     if (m_curves.contains(curveId)) {
@@ -585,6 +603,7 @@ void vtkPlotBase::setCurveName(const QString &curveId, const QString &name)
     }
 }
 
+// 设置标记名称（用于图例显示）
 void vtkPlotBase::setMarkerName(const QString &markerId, const QString &name)
 {
     if (m_markers.contains(markerId)) {
@@ -593,6 +612,7 @@ void vtkPlotBase::setMarkerName(const QString &markerId, const QString &name)
     }
 }
 
+// 重置视角（恢复默认相机位置）
 void vtkPlotBase::resetView()
 {
     qDebug() << "resetView: restoring default camera view";
@@ -604,84 +624,86 @@ void vtkPlotBase::resetView()
     render();
 }
 
+// 重置坐标轴范围（自动适应数据）
 void vtkPlotBase::resetAxisRange()
 {
     qDebug() << "resetAxisRange: triggering auto scale";
     autoScaleIfNeeded();
 }
 
+// 前视图（从Z轴方向看）
 void vtkPlotBase::setViewFront()
 {
-    // Front view: looking from Z-axis (camera at +Z)
     qDebug() << "setViewFront: front view (Z-axis)";
     vtkCamera *camera = m_renderer->GetActiveCamera();
     
-    // Calculate focal point (center of the data bounds)
+    // 计算焦点（数据边界中心）
     double focalPoint[3] = {
         (m_xMin + m_xMax) / 2.0,
         (m_yMin + m_yMax) / 2.0,
         (m_zMin + m_zMax) / 2.0
     };
     
-    // Keep current distance
+    // 保持当前距离
     double distance = camera->GetDistance();
     
-    // Set camera position (from Z-axis)
+    // 设置相机位置（从Z轴方向）
     camera->SetFocalPoint(focalPoint);
     camera->SetPosition(focalPoint[0], focalPoint[1], focalPoint[2] + distance);
-    camera->SetViewUp(0, 1, 0);  // Y-axis up
+    camera->SetViewUp(0, 1, 0);  // Y轴向上
     
     render();
 }
 
+// 俯视图（从Y轴方向看）
 void vtkPlotBase::setViewTop()
 {
-    // Top view: looking from Y-axis (camera at +Y)
     qDebug() << "setViewTop: top view (Y-axis)";
     vtkCamera *camera = m_renderer->GetActiveCamera();
     
-    // Calculate focal point (center of the data bounds)
+    // 计算焦点（数据边界中心）
     double focalPoint[3] = {
         (m_xMin + m_xMax) / 2.0,
         (m_yMin + m_yMax) / 2.0,
         (m_zMin + m_zMax) / 2.0
     };
     
-    // Keep current distance
+    // 保持当前距离
     double distance = camera->GetDistance();
     
-    // Set camera position (from Y-axis)
+    // 设置相机位置（从Y轴方向）
     camera->SetFocalPoint(focalPoint);
     camera->SetPosition(focalPoint[0], focalPoint[1] + distance, focalPoint[2]);
-    camera->SetViewUp(0, 0, -1);  // Z-axis down (towards negative Z)
+    camera->SetViewUp(0, 0, -1);  // Z轴向下
     
     render();
 }
 
+// 侧视图（从X轴方向看）
 void vtkPlotBase::setViewSide()
 {
-    // Side view: looking from X-axis (camera at +X)
     qDebug() << "setViewSide: side view (X-axis)";
     vtkCamera *camera = m_renderer->GetActiveCamera();
     
-    // Calculate focal point (center of the data bounds)
+    // 计算焦点（数据边界中心）
     double focalPoint[3] = {
         (m_xMin + m_xMax) / 2.0,
         (m_yMin + m_yMax) / 2.0,
         (m_zMin + m_zMax) / 2.0
     };
     
-    // Keep current distance
+    // 保持当前距离
     double distance = camera->GetDistance();
     
-    // Set camera position (from X-axis)
+    // 设置相机位置（从X轴方向）
     camera->SetFocalPoint(focalPoint);
     camera->SetPosition(focalPoint[0] + distance, focalPoint[1], focalPoint[2]);
-    camera->SetViewUp(0, 0, 1);  // Z-axis up
+    camera->SetViewUp(0, 0, 1);  // Z轴向上
     
     render();
 }
 
+// 重置相机
 void vtkPlotBase::resetCamera()
 {
     m_renderer->ResetCamera();
@@ -690,6 +712,7 @@ void vtkPlotBase::resetCamera()
 
 // ==================== 曲线操作 ====================
 
+// 添加曲线（QVector3D点集）
 QString vtkPlotBase::addCurve(const QVector<QVector3D> &points, const QColor &color, double lineWidth)
 {
     if (points.size() < 2) return QString();
@@ -740,6 +763,7 @@ QString vtkPlotBase::addCurve(const QVector<QVector3D> &points, const QColor &co
     return id;
 }
 
+// 添加曲线（分离的X/Y/Z数组）
 QString vtkPlotBase::addCurve(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,
                               const QColor &color, double lineWidth)
 {
@@ -752,6 +776,7 @@ QString vtkPlotBase::addCurve(const QVector<double> &x, const QVector<double> &y
     return addCurve(points, color, lineWidth);
 }
 
+// 设置曲线可见性
 void vtkPlotBase::setCurveVisible(const QString &curveId, bool visible)
 {
     if (m_curves.contains(curveId)) {
@@ -761,6 +786,7 @@ void vtkPlotBase::setCurveVisible(const QString &curveId, bool visible)
     }
 }
 
+// 设置曲线颜色
 void vtkPlotBase::setCurveColor(const QString &curveId, const QColor &color)
 {
     if (m_curves.contains(curveId)) {
@@ -769,6 +795,7 @@ void vtkPlotBase::setCurveColor(const QString &curveId, const QColor &color)
     }
 }
 
+// 设置曲线线宽
 void vtkPlotBase::setCurveLineWidth(const QString &curveId, double lineWidth)
 {
     if (m_curves.contains(curveId)) {
@@ -777,26 +804,27 @@ void vtkPlotBase::setCurveLineWidth(const QString &curveId, double lineWidth)
     }
 }
 
+// 更新曲线数据
 void vtkPlotBase::updateCurveData(const QString &curveId, const QVector<QVector3D> &points)
 {
     if (!m_curves.contains(curveId) || points.size() < 2) return;
 
     CurveData &curve = m_curves[curveId];
 
-    // Create new points
+    // 创建新点集
     vtkSmartPointer<vtkPoints> pts = vtkSmartPointer<vtkPoints>::New();
     for (const auto &pt : points) {
         pts->InsertNextPoint(pt.x(), pt.y(), pt.z());
     }
 
-    // Create polyline
+    // 创建多段线
     vtkSmartPointer<vtkPolyLine> polyLine = vtkSmartPointer<vtkPolyLine>::New();
     polyLine->GetPointIds()->SetNumberOfIds(points.size());
     for (int i = 0; i < points.size(); ++i) {
         polyLine->GetPointIds()->SetId(i, i);
     }
 
-    // Create cell array
+    // 创建单元数组
     vtkSmartPointer<vtkCellArray> cells = vtkSmartPointer<vtkCellArray>::New();
     cells->InsertNextCell(polyLine);
 
@@ -807,6 +835,7 @@ void vtkPlotBase::updateCurveData(const QString &curveId, const QVector<QVector3
     render();
 }
 
+// 移除曲线
 void vtkPlotBase::removeCurve(const QString &curveId)
 {
     if (m_curves.contains(curveId)) {
@@ -817,6 +846,7 @@ void vtkPlotBase::removeCurve(const QString &curveId)
     }
 }
 
+// 清除所有曲线
 void vtkPlotBase::clearAllCurves()
 {
     for (auto it = m_curves.begin(); it != m_curves.end(); ++it) {
@@ -827,6 +857,7 @@ void vtkPlotBase::clearAllCurves()
     updateLegend();
 }
 
+// 获取所有曲线ID
 QStringList vtkPlotBase::getCurveIds() const
 {
     return m_curves.keys();
@@ -834,6 +865,7 @@ QStringList vtkPlotBase::getCurveIds() const
 
 // ==================== 空心环标记操作 ====================
 
+// 添加空心环标记
 QString vtkPlotBase::addHollowMarker(const QVector3D &position, const QColor &color, double radius, double lineWidth)
 {
     QString id = generateId();
@@ -873,6 +905,7 @@ QString vtkPlotBase::addHollowMarker(const QVector3D &position, const QColor &co
     return id;
 }
 
+// 设置标记可见性
 void vtkPlotBase::setMarkerVisible(const QString &markerId, bool visible)
 {
     if (m_markers.contains(markerId)) {
@@ -883,6 +916,7 @@ void vtkPlotBase::setMarkerVisible(const QString &markerId, bool visible)
     }
 }
 
+// 设置标记颜色
 void vtkPlotBase::setMarkerColor(const QString &markerId, const QColor &color)
 {
     if (m_markers.contains(markerId)) {
@@ -891,6 +925,7 @@ void vtkPlotBase::setMarkerColor(const QString &markerId, const QColor &color)
     }
 }
 
+// 设置标记半径
 void vtkPlotBase::setMarkerRadius(const QString &markerId, double radius)
 {
     if (!m_markers.contains(markerId)) return;
@@ -898,7 +933,7 @@ void vtkPlotBase::setMarkerRadius(const QString &markerId, double radius)
     MarkerData &marker = m_markers[markerId];
     marker.radius = radius;
 
-    // Recreate disk source with new radius
+    // 使用新半径重新创建圆盘源
     vtkSmartPointer<vtkDiskSource> diskSource = vtkSmartPointer<vtkDiskSource>::New();
     diskSource->SetInnerRadius(radius * 0.6);
     diskSource->SetOuterRadius(radius);
@@ -910,6 +945,7 @@ void vtkPlotBase::setMarkerRadius(const QString &markerId, double radius)
     render();
 }
 
+// 设置标记线宽
 void vtkPlotBase::setMarkerLineWidth(const QString &markerId, double lineWidth)
 {
     if (m_markers.contains(markerId)) {
@@ -919,6 +955,7 @@ void vtkPlotBase::setMarkerLineWidth(const QString &markerId, double lineWidth)
     }
 }
 
+// 更新标记位置
 void vtkPlotBase::updateMarkerPosition(const QString &markerId, const QVector3D &position)
 {
     if (m_markers.contains(markerId)) {
@@ -928,6 +965,7 @@ void vtkPlotBase::updateMarkerPosition(const QString &markerId, const QVector3D 
     }
 }
 
+// 移除标记
 void vtkPlotBase::removeMarker(const QString &markerId)
 {
     if (m_markers.contains(markerId)) {
@@ -938,6 +976,7 @@ void vtkPlotBase::removeMarker(const QString &markerId)
     }
 }
 
+// 清除所有标记
 void vtkPlotBase::clearAllMarkers()
 {
     for (auto it = m_markers.begin(); it != m_markers.end(); ++it) {
@@ -948,6 +987,7 @@ void vtkPlotBase::clearAllMarkers()
     updateLegend();
 }
 
+// 获取所有标记ID
 QStringList vtkPlotBase::getMarkerIds() const
 {
     return m_markers.keys();
@@ -955,6 +995,7 @@ QStringList vtkPlotBase::getMarkerIds() const
 
 // ==================== 填充圆标记操作 ====================
 
+// 添加填充圆标记
 QString vtkPlotBase::addFilledMarker(const QVector3D &position, const QColor &color, double radius)
 {
     QString id = generateId();
@@ -993,26 +1034,29 @@ QString vtkPlotBase::addFilledMarker(const QVector3D &position, const QColor &co
     return id;
 }
 
+// 设置填充标记可见性（委托给通用标记函数）
 void vtkPlotBase::setFilledMarkerVisible(const QString &markerId, bool visible)
 {
     setMarkerVisible(markerId, visible);
 }
 
+// 设置填充标记颜色（委托给通用标记函数）
 void vtkPlotBase::setFilledMarkerColor(const QString &markerId, const QColor &color)
 {
     setMarkerColor(markerId, color);
 }
 
+// 设置填充标记半径
 void vtkPlotBase::setFilledMarkerRadius(const QString &markerId, double radius)
 {
     if (!m_markers.contains(markerId)) return;
 
     MarkerData &marker = m_markers[markerId];
-    if (!marker.filled) return;  // Only for filled markers
+    if (!marker.filled) return;  // 仅用于填充标记
 
     marker.radius = radius;
 
-    // Recreate polygon source with new radius
+    // 使用新半径重新创建多边形源
     vtkSmartPointer<vtkRegularPolygonSource> polygonSource = vtkSmartPointer<vtkRegularPolygonSource>::New();
     polygonSource->SetNumberOfSides(64);
     polygonSource->SetRadius(radius);
@@ -1024,16 +1068,19 @@ void vtkPlotBase::setFilledMarkerRadius(const QString &markerId, double radius)
     render();
 }
 
+// 更新填充标记位置（委托给通用标记函数）
 void vtkPlotBase::updateFilledMarkerPosition(const QString &markerId, const QVector3D &position)
 {
     updateMarkerPosition(markerId, position);
 }
 
+// 移除填充标记（委托给通用标记函数）
 void vtkPlotBase::removeFilledMarker(const QString &markerId)
 {
     removeMarker(markerId);
 }
 
+// 清除所有填充标记
 void vtkPlotBase::clearAllFilledMarkers()
 {
     QStringList idsToRemove;
