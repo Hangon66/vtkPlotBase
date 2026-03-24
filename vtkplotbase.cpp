@@ -14,6 +14,7 @@
 #include <cstring>
 #include <string>
 #include <QDebug>
+#include <QtGlobal>
 
 // ==================== 自定义交互器样式 ====================
 // 处理键盘快捷键：R(重置视角)、X(侧视图)、Y(俯视图)、Z(前视图)
@@ -241,6 +242,11 @@ void vtkPlotBase::updateLegend()
             entryCount++;
         }
     }
+    for (auto it = m_surfaces.begin(); it != m_surfaces.end(); ++it) {
+        if (it->visible && !it->name.isEmpty()) {
+            entryCount++;
+        }
+    }
     
     // 如果没有条目，清空图例并返回
     if (entryCount == 0) {
@@ -332,8 +338,38 @@ void vtkPlotBase::updateLegend()
         }
     }
     
+    // 创建曲面符号（填充方块）
+    vtkSmartPointer<vtkRegularPolygonSource> squareSource = vtkSmartPointer<vtkRegularPolygonSource>::New();
+    squareSource->SetNumberOfSides(4);  // 正方形
+    squareSource->SetRadius(0.25);
+    squareSource->SetCenter(0.25, 0, 0);
+    squareSource->Update();
+    
+    // 添加右侧扩展点用于创建间距
+    vtkSmartPointer<vtkPolyData> squareSymbol = vtkSmartPointer<vtkPolyData>::New();
+    squareSymbol->DeepCopy(squareSource->GetOutput());
+    squareSymbol->GetPoints()->InsertNextPoint(1.0, 0, 0);
+    
+    // 将曲面添加到图例
+    for (auto it = m_surfaces.begin(); it != m_surfaces.end(); ++it) {
+        if (it->visible && !it->name.isEmpty()) {
+            double color[3];
+            it->actor->GetProperty()->GetColor(color);
+            m_legendActor->SetEntry(entry++, squareSymbol, it->name.toUtf8().constData(), color);
+        }
+    }
+    
     // 根据设置更新图例位置
     updateLegendPosition();
+    
+    // 根据图例条目数量动态调整图例框大小
+    // 每个条目高度约0.035，最小宽度0.10，最大宽度0.18
+    double legendWidth = qBound(0.10, 0.12 + entryCount * 0.005, 0.18);
+    double legendHeight = qBound(0.04, 0.03 + entryCount * 0.035, 0.25);
+    m_legendActor->GetPosition2Coordinate()->SetValue(legendWidth, legendHeight);
+    
+    // 根据图例框高度重新调整位置（使顶部/底部对齐）
+    updateLegendPositionForSize(legendWidth, legendHeight);
     
     render();
 }
@@ -341,18 +377,34 @@ void vtkPlotBase::updateLegend()
 // 更新图例位置（根据当前位置设置）
 void vtkPlotBase::updateLegendPosition()
 {
+    // 获取当前图例框大小
+    double *pos2 = m_legendActor->GetPosition2Coordinate()->GetValue();
+    double legendWidth = pos2[0];
+    double legendHeight = pos2[1];
+    updateLegendPositionForSize(legendWidth, legendHeight);
+}
+
+// 根据图例框大小更新位置（使顶部/底部贴边）
+void vtkPlotBase::updateLegendPositionForSize(double legendWidth, double legendHeight)
+{
+    double margin = 0.02;  // 边距2%
+    
     switch (m_legendPosition) {
         case LegendPosition::TopLeft:
-            m_legendActor->GetPositionCoordinate()->SetValue(0.03, 0.85);
+            // 左上角：X靠左，Y使顶部贴边
+            m_legendActor->GetPositionCoordinate()->SetValue(margin, 1.0 - legendHeight - margin);
             break;
         case LegendPosition::TopRight:
-            m_legendActor->GetPositionCoordinate()->SetValue(0.85, 0.85);
+            // 右上角：X使右侧贴边，Y使顶部贴边
+            m_legendActor->GetPositionCoordinate()->SetValue(1.0 - legendWidth - margin, 1.0 - legendHeight - margin);
             break;
         case LegendPosition::BottomLeft:
-            m_legendActor->GetPositionCoordinate()->SetValue(0.03, 0.03);
+            // 左下角：X靠左，Y靠底部
+            m_legendActor->GetPositionCoordinate()->SetValue(margin, margin);
             break;
         case LegendPosition::BottomRight:
-            m_legendActor->GetPositionCoordinate()->SetValue(0.85, 0.03);
+            // 右下角：X使右侧贴边，Y靠底部
+            m_legendActor->GetPositionCoordinate()->SetValue(1.0 - legendWidth - margin, margin);
             break;
     }
 }
@@ -436,6 +488,48 @@ void vtkPlotBase::computeDataBounds(double &xMin, double &xMax, double &yMin, do
         yMax = std::max(yMax, pos[1] + r);
         zMin = std::min(zMin, pos[2] - r);
         zMax = std::max(zMax, pos[2] + r);
+    }
+    
+    // 从曲面计算边界
+    for (auto it = m_surfaces.begin(); it != m_surfaces.end(); ++it) {
+        if (!it->visible) continue;
+        
+        vtkPolyData *polyData = it->polyData;
+        vtkPoints *pts = polyData->GetPoints();
+        if (!pts || pts->GetNumberOfPoints() == 0) continue;
+        
+        hasData = true;
+        for (vtkIdType i = 0; i < pts->GetNumberOfPoints(); ++i) {
+            double pt[3];
+            pts->GetPoint(i, pt);
+            xMin = std::min(xMin, pt[0]);
+            xMax = std::max(xMax, pt[0]);
+            yMin = std::min(yMin, pt[1]);
+            yMax = std::max(yMax, pt[1]);
+            zMin = std::min(zMin, pt[2]);
+            zMax = std::max(zMax, pt[2]);
+        }
+    }
+    
+    // 从热力图曲面计算边界
+    for (auto it = m_heatmapSurfaces.begin(); it != m_heatmapSurfaces.end(); ++it) {
+        if (!it->visible) continue;
+        
+        vtkPolyData *polyData = it->polyData;
+        vtkPoints *pts = polyData->GetPoints();
+        if (!pts || pts->GetNumberOfPoints() == 0) continue;
+        
+        hasData = true;
+        for (vtkIdType i = 0; i < pts->GetNumberOfPoints(); ++i) {
+            double pt[3];
+            pts->GetPoint(i, pt);
+            xMin = std::min(xMin, pt[0]);
+            xMax = std::max(xMax, pt[0]);
+            yMin = std::min(yMin, pt[1]);
+            yMax = std::max(yMax, pt[1]);
+            zMin = std::min(zMin, pt[2]);
+            zMax = std::max(zMax, pt[2]);
+        }
     }
     
     // 如果没有数据，设置默认范围
@@ -1111,4 +1205,596 @@ void vtkPlotBase::clearAll()
 {
     clearAllCurves();
     clearAllMarkers();
+    clearAllSurfaces();
+    clearAllHeatmapSurfaces();
 }
+
+// ==================== 曲面操作 ====================
+
+// 添加曲面（QVector3D网格点）
+QString vtkPlotBase::addSurface(const QVector<QVector3D> &points, int nx, int ny,
+                                const QColor &color, double opacity)
+{
+    // 参数校验：至少需要4个点构成一个四边形，网格维度至少2x2
+    if (points.size() < 4 || nx < 2 || ny < 2) return QString();
+    // 验证点数与网格维度是否匹配
+    if (points.size() != nx * ny) return QString();
+
+    // 生成唯一标识符
+    QString id = generateId();
+    
+    // 初始化曲面数据结构
+    SurfaceData surface;
+    surface.id = id;
+    surface.visible = true;      // 默认可见
+    surface.opacity = opacity;   // 不透明度（0.0透明 - 1.0不透明）
+
+    // ==================== 创建点集 ====================
+    // 将QVector3D点集转换为VTK点集格式
+    vtkSmartPointer<vtkPoints> pts = vtkSmartPointer<vtkPoints>::New();
+    for (const auto &pt : points) {
+        pts->InsertNextPoint(pt.x(), pt.y(), pt.z());
+    }
+
+    // ==================== 创建多边形网格 ====================
+    // 使用四边形（vtkQuad）单元构建网格
+    // 网格拓扑：nx列 x ny行的点阵，生成 (nx-1) x (ny-1) 个四边形单元
+    vtkSmartPointer<vtkCellArray> polys = vtkSmartPointer<vtkCellArray>::New();
+    for (int j = 0; j < ny - 1; ++j) {        // 遍历行（Y方向）
+        for (int i = 0; i < nx - 1; ++i) {    // 遍历列（X方向）
+            // 创建四边形单元
+            vtkSmartPointer<vtkQuad> quad = vtkSmartPointer<vtkQuad>::New();
+            
+            // 计算当前网格左上角的点索引
+            // 点的排列顺序：按行优先，即 [0,1,2,...,nx-1] 为第一行，[nx,nx+1,...] 为第二行
+            int idx = j * nx + i;
+            
+            // 设置四边形四个顶点的索引（逆时针顺序）
+            //    idx+nx  --- idx+nx+1
+            //       |          |
+            //      idx  --- idx+1
+            quad->GetPointIds()->SetId(0, idx);           // 左下角
+            quad->GetPointIds()->SetId(1, idx + 1);       // 右下角
+            quad->GetPointIds()->SetId(2, idx + nx + 1);  // 右上角
+            quad->GetPointIds()->SetId(3, idx + nx);      // 左上角
+            
+            // 将四边形单元添加到单元数组
+            polys->InsertNextCell(quad);
+        }
+    }
+
+    // ==================== 创建多边形数据 ====================
+    // vtkPolyData是VTK中表示多边形数据的核心类
+    surface.polyData = vtkSmartPointer<vtkPolyData>::New();
+    surface.polyData->SetPoints(pts);    // 设置顶点坐标
+    surface.polyData->SetPolys(polys);   // 设置多边形单元
+
+    // ==================== 创建映射器 ====================
+    // 映射器负责将数据转换为图形基元
+    surface.mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    surface.mapper->SetInputData(surface.polyData);
+
+    // ==================== 创建演员 ====================
+    // 演员代表场景中可渲染的对象
+    surface.actor = vtkSmartPointer<vtkActor>::New();
+    surface.actor->SetMapper(surface.mapper);
+    
+    // 设置外观属性
+    surface.actor->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());  // 颜色
+    surface.actor->GetProperty()->SetOpacity(opacity);                                    // 不透明度
+    surface.actor->GetProperty()->SetInterpolationToPhong();  // Phong着色（平滑过渡）
+
+    // ==================== 添加到场景 ====================
+    m_renderer->AddActor(surface.actor);  // 添加演员到渲染器
+    m_surfaces[id] = surface;              // 保存到曲面映射表
+    
+    autoScaleIfNeeded();  // 自动调整坐标轴范围
+    updateLegend();       // 更新图例
+
+    return id;
+}
+
+// 添加曲面（分离的X/Y/Z数组）
+QString vtkPlotBase::addSurface(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,
+                                int nx, int ny, const QColor &color, double opacity)
+{
+    if (x.size() != y.size() || x.size() != z.size() || x.size() < 4) return QString();
+    if (x.size() != nx * ny) return QString();
+
+    QVector<QVector3D> points;
+    for (int i = 0; i < x.size(); ++i) {
+        points.append(QVector3D(x[i], y[i], z[i]));
+    }
+    return addSurface(points, nx, ny, color, opacity);
+}
+
+// 设置曲面可见性
+void vtkPlotBase::setSurfaceVisible(const QString &surfaceId, bool visible)
+{
+    if (m_surfaces.contains(surfaceId)) {
+        m_surfaces[surfaceId].visible = visible;
+        m_surfaces[surfaceId].actor->SetVisibility(visible ? 1 : 0);
+        updateLegend();
+    }
+}
+
+// 设置曲面颜色
+void vtkPlotBase::setSurfaceColor(const QString &surfaceId, const QColor &color)
+{
+    if (m_surfaces.contains(surfaceId)) {
+        m_surfaces[surfaceId].actor->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
+        render();
+    }
+}
+
+// 设置曲面不透明度
+void vtkPlotBase::setSurfaceOpacity(const QString &surfaceId, double opacity)
+{
+    if (m_surfaces.contains(surfaceId)) {
+        m_surfaces[surfaceId].opacity = opacity;
+        m_surfaces[surfaceId].actor->GetProperty()->SetOpacity(opacity);
+        render();
+    }
+}
+
+// 设置曲面图例名称
+void vtkPlotBase::setSurfaceName(const QString &surfaceId, const QString &name)
+{
+    if (m_surfaces.contains(surfaceId)) {
+        m_surfaces[surfaceId].name = name;
+        updateLegend();
+    }
+}
+
+// 移除曲面
+void vtkPlotBase::removeSurface(const QString &surfaceId)
+{
+    if (m_surfaces.contains(surfaceId)) {
+        m_renderer->RemoveActor(m_surfaces[surfaceId].actor);
+        m_surfaces.remove(surfaceId);
+        autoScaleIfNeeded();
+        updateLegend();
+    }
+}
+
+// 清除所有曲面
+void vtkPlotBase::clearAllSurfaces()
+{
+    for (auto it = m_surfaces.begin(); it != m_surfaces.end(); ++it) {
+        m_renderer->RemoveActor(it->actor);
+    }
+    m_surfaces.clear();
+    autoScaleIfNeeded();
+    updateLegend();
+}
+
+// 获取所有曲面ID
+QStringList vtkPlotBase::getSurfaceIds() const
+{
+    return m_surfaces.keys();
+}
+
+// ==================== 热力图曲面操作 ====================
+
+// 创建彩虹颜色查找表
+vtkSmartPointer<vtkLookupTable> createRainbowLookupTable(double zMin, double zMax)
+{
+    vtkSmartPointer<vtkLookupTable> lookupTable = vtkSmartPointer<vtkLookupTable>::New();
+    lookupTable->SetRange(zMin, zMax);
+    lookupTable->SetNumberOfTableValues(256);
+    
+    // 彩虹色：蓝 -> 青 -> 绿 -> 黄 -> 红
+    for (int i = 0; i < 256; ++i) {
+        double t = i / 255.0;
+        double r, g, b;
+        
+        if (t < 0.25) {
+            // 蓝到青
+            r = 0.0;
+            g = t * 4.0;
+            b = 1.0;
+        } else if (t < 0.5) {
+            // 青到绿
+            r = 0.0;
+            g = 1.0;
+            b = 1.0 - (t - 0.25) * 4.0;
+        } else if (t < 0.75) {
+            // 绿到黄
+            r = (t - 0.5) * 4.0;
+            g = 1.0;
+            b = 0.0;
+        } else {
+            // 黄到红
+            r = 1.0;
+            g = 1.0 - (t - 0.75) * 4.0;
+            b = 0.0;
+        }
+        
+        lookupTable->SetTableValue(i, r, g, b, 1.0);
+    }
+    
+    lookupTable->Build();
+    return lookupTable;
+}
+
+// 添加热力图曲面（QVector3D网格点）
+// 根据Y值（高度）映射颜色，生成等高线投影，并显示颜色条
+QString vtkPlotBase::addHeatmapSurface(const QVector<QVector3D> &points, int nx, int ny,
+                                       const QString &colorBarTitle)
+{
+    // ==================== 参数校验 ====================
+    // 至少需要4个点构成一个四边形，网格维度至少2x2
+    if (points.size() < 4 || nx < 2 || ny < 2) return QString();
+    // 验证点数与网格维度是否匹配
+    if (points.size() != nx * ny) return QString();
+
+    // ==================== 初始化曲面数据 ====================
+    QString id = generateId();
+    HeatmapSurfaceData surface;
+    surface.id = id;
+    surface.visible = true;           // 默认可见
+    surface.opacity = 1.0;            // 完全不透明
+    surface.contourVisible = true;    // 默认显示等高线
+    surface.contourCount = 5;         // 默认5条等高线
+
+    // ==================== 计算高度范围（Y值） ====================
+    // 高度范围用于颜色映射和等高线生成
+    double heightMin = std::numeric_limits<double>::max();
+    double heightMax = std::numeric_limits<double>::lowest();
+    for (const auto &pt : points) {
+        heightMin = std::min(heightMin, static_cast<double>(pt.y()));
+        heightMax = std::max(heightMax, static_cast<double>(pt.y()));
+    }
+    surface.zMin = heightMin;  // 保存高度范围（用于后续等高线重建）
+    surface.zMax = heightMax;
+
+    // ==================== 创建点集 ====================
+    // 将QVector3D点集转换为VTK点集格式
+    // 曲面在ZX平面展开，Y作为高度值
+    vtkSmartPointer<vtkPoints> pts = vtkSmartPointer<vtkPoints>::New();
+    for (const auto &pt : points) {
+        pts->InsertNextPoint(pt.x(), pt.y(), pt.z());
+    }
+
+    // ==================== 创建多边形网格 ====================
+    // 使用四边形（vtkQuad）单元构建网格
+    // 网格拓扑：nx列 x ny行的点阵，生成 (nx-1) x (ny-1) 个四边形单元
+    vtkSmartPointer<vtkCellArray> polys = vtkSmartPointer<vtkCellArray>::New();
+    for (int j = 0; j < ny - 1; ++j) {        // 遍历行
+        for (int i = 0; i < nx - 1; ++i) {    // 遍历列
+            // 创建四边形单元
+            vtkSmartPointer<vtkQuad> quad = vtkSmartPointer<vtkQuad>::New();
+            
+            // 计算当前网格左下角的点索引（行优先排列）
+            int idx = j * nx + i;
+            
+            // 设置四边形四个顶点的索引（逆时针顺序）
+            quad->GetPointIds()->SetId(0, idx);           // 左下角
+            quad->GetPointIds()->SetId(1, idx + 1);       // 右下角
+            quad->GetPointIds()->SetId(2, idx + nx + 1);  // 右上角
+            quad->GetPointIds()->SetId(3, idx + nx);      // 左上角
+            polys->InsertNextCell(quad);
+        }
+    }
+
+    // ==================== 创建多边形数据 ====================
+    surface.polyData = vtkSmartPointer<vtkPolyData>::New();
+    surface.polyData->SetPoints(pts);     // 设置顶点坐标
+    surface.polyData->SetPolys(polys);    // 设置多边形单元
+    
+    // ==================== 添加标量数据（高度值） ====================
+    // 标量数据用于颜色映射：Y值（高度）决定颜色
+    // 每个点对应一个标量值，映射到彩虹色查找表
+    vtkSmartPointer<vtkFloatArray> scalars = vtkSmartPointer<vtkFloatArray>::New();
+    scalars->SetNumberOfComponents(1);   // 单分量标量
+    scalars->SetName("Height");          // 标量名称
+    for (const auto &pt : points) {
+        scalars->InsertNextValue(pt.y());  // Y值作为标量
+    }
+    surface.polyData->GetPointData()->SetScalars(scalars);
+
+    // ==================== 创建颜色查找表 ====================
+    // 彩虹色渐变：蓝 → 青 → 绿 → 黄 → 红
+    // 高度值低显示蓝色，高度值高显示红色
+    surface.lookupTable = createRainbowLookupTable(heightMin, heightMax);
+
+    // ==================== 创建映射器 ====================
+    // 映射器负责将数据转换为图形基元，并应用颜色映射
+    surface.mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    surface.mapper->SetInputData(surface.polyData);
+    surface.mapper->SetScalarModeToUsePointData();       // 使用点数据中的标量
+    surface.mapper->SetScalarRange(heightMin, heightMax); // 设置标量范围
+    surface.mapper->SetLookupTable(surface.lookupTable);  // 应用颜色查找表
+    surface.mapper->UseLookupTableScalarRangeOn();        // 使用查找表的标量范围
+
+    // ==================== 创建演员 ====================
+    surface.actor = vtkSmartPointer<vtkActor>::New();
+    surface.actor->SetMapper(surface.mapper);
+    surface.actor->GetProperty()->SetInterpolationToPhong();  // Phong着色（平滑过渡）
+
+    // ==================== 添加到场景 ====================
+    m_renderer->AddActor(surface.actor);
+    
+    // 先添加曲面到map（让autoScaleIfNeeded能计算边界）
+    m_heatmapSurfaces[id] = surface;
+    
+    // ==================== 自动调整坐标轴范围 ====================
+    // 计算所有数据的边界，更新坐标轴显示范围
+    autoScaleIfNeeded();
+    
+    // ==================== 创建等高线投影 ====================
+    // 等高线投影到坐标系Y轴最小值平面（自适应）
+    // 等高线颜色与曲面对应高度的颜色一致
+    m_heatmapSurfaces[id].contourBaseY = m_yMin;  // 投影到坐标系Y轴最小值
+    createContourProjection(m_heatmapSurfaces[id], heightMin, heightMax);
+    
+    // ==================== 更新颜色条 ====================
+    // 颜色条显示在画面右侧，标题为colorBarTitle
+    updateScalarBar(heightMin, heightMax, colorBarTitle);
+
+    return id;
+}
+
+// 添加热力图曲面（分离的X/Y/Z数组）
+QString vtkPlotBase::addHeatmapSurface(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,
+                                       int nx, int ny, const QString &colorBarTitle)
+{
+    if (x.size() != y.size() || x.size() != z.size() || x.size() < 4) return QString();
+    if (x.size() != nx * ny) return QString();
+
+    QVector<QVector3D> points;
+    for (int i = 0; i < x.size(); ++i) {
+        points.append(QVector3D(x[i], y[i], z[i]));
+    }
+    return addHeatmapSurface(points, nx, ny, colorBarTitle);
+}
+
+// 更新颜色条
+void vtkPlotBase::updateScalarBar(double zMin, double zMax, const QString &title)
+{
+    if (!m_scalarBarActor) {
+        // 创建颜色条演员
+        m_scalarBarActor = vtkSmartPointer<vtkScalarBarActor>::New();
+        
+        // 设置标签数量（显示5个刻度值）
+        m_scalarBarActor->SetNumberOfLabels(5);
+        
+        // 设置为垂直方向
+        m_scalarBarActor->SetOrientationToVertical();
+        
+        // 设置尺寸和位置（右侧）
+        m_scalarBarActor->SetWidth(0.08);    // 宽度占屏幕8%
+        m_scalarBarActor->SetHeight(0.45);   // 高度占屏幕45%
+        m_scalarBarActor->SetPosition(0.90, 0.30);  // 右侧，底部30%
+        
+        // 设置文本属性（白色文字）
+        m_scalarBarActor->GetTitleTextProperty()->SetColor(1, 1, 1);  // 标题颜色
+        m_scalarBarActor->GetTitleTextProperty()->SetFontSize(12);   // 标题字号
+        m_scalarBarActor->GetLabelTextProperty()->SetColor(1, 1, 1);  // 标签颜色
+        m_scalarBarActor->GetLabelTextProperty()->SetFontSize(10);    // 标签字号
+        
+        // 设置标题位置在颜色条右侧
+        m_scalarBarActor->SetTextPositionToSucceedScalarBar();
+        m_scalarBarActor->SetVerticalTitleSeparation(10);  // 标题与颜色条间距10像素
+        m_scalarBarActor->SetTextPad(2);  // 文本框填充2像素
+        
+        // 添加到渲染器
+        m_renderer->AddViewProp(m_scalarBarActor);
+    }
+    
+    // 使用第一个热力图曲面的颜色表
+    if (!m_heatmapSurfaces.isEmpty()) {
+        m_scalarBarActor->SetLookupTable(m_heatmapSurfaces.first().lookupTable);
+    }
+    m_scalarBarActor->SetTitle(title.toUtf8().constData());
+}
+
+// 设置热力图曲面可见性
+void vtkPlotBase::setHeatmapSurfaceVisible(const QString &surfaceId, bool visible)
+{
+    if (m_heatmapSurfaces.contains(surfaceId)) {
+        m_heatmapSurfaces[surfaceId].visible = visible;
+        m_heatmapSurfaces[surfaceId].actor->SetVisibility(visible ? 1 : 0);
+        render();
+    }
+}
+
+// 设置热力图曲面不透明度
+void vtkPlotBase::setHeatmapSurfaceOpacity(const QString &surfaceId, double opacity)
+{
+    if (m_heatmapSurfaces.contains(surfaceId)) {
+        m_heatmapSurfaces[surfaceId].opacity = opacity;
+        m_heatmapSurfaces[surfaceId].actor->GetProperty()->SetOpacity(opacity);
+        render();
+    }
+}
+
+// 设置热力图曲面图例名称
+void vtkPlotBase::setHeatmapSurfaceName(const QString &surfaceId, const QString &name)
+{
+    if (m_heatmapSurfaces.contains(surfaceId)) {
+        m_heatmapSurfaces[surfaceId].name = name;
+    }
+}
+
+// 设置颜色条可见性
+void vtkPlotBase::setHeatmapColorBarVisible(bool visible)
+{
+    if (m_scalarBarActor) {
+        m_scalarBarActor->SetVisibility(visible ? 1 : 0);
+        render();
+    }
+}
+
+// 设置颜色条标题
+void vtkPlotBase::setHeatmapColorBarTitle(const QString &title)
+{
+    if (m_scalarBarActor) {
+        m_scalarBarActor->SetTitle(title.toUtf8().constData());
+        render();
+    }
+}
+
+// 移除热力图曲面
+void vtkPlotBase::removeHeatmapSurface(const QString &surfaceId)
+{
+    if (m_heatmapSurfaces.contains(surfaceId)) {
+        m_renderer->RemoveActor(m_heatmapSurfaces[surfaceId].actor);
+        // 移除等高线演员
+        if (m_heatmapSurfaces[surfaceId].contourActor) {
+            m_renderer->RemoveActor(m_heatmapSurfaces[surfaceId].contourActor);
+        }
+        m_heatmapSurfaces.remove(surfaceId);
+        
+        // 如果没有热力图曲面了，隐藏颜色条
+        if (m_heatmapSurfaces.isEmpty() && m_scalarBarActor) {
+            m_scalarBarActor->SetVisibility(0);
+        }
+        
+        autoScaleIfNeeded();
+        render();
+    }
+}
+
+// 清除所有热力图曲面
+void vtkPlotBase::clearAllHeatmapSurfaces()
+{
+    for (auto it = m_heatmapSurfaces.begin(); it != m_heatmapSurfaces.end(); ++it) {
+        m_renderer->RemoveActor(it->actor);
+        // 移除等高线演员
+        if (it->contourActor) {
+            m_renderer->RemoveActor(it->contourActor);
+        }
+    }
+    m_heatmapSurfaces.clear();
+    
+    // 隐藏颜色条
+    if (m_scalarBarActor) {
+        m_scalarBarActor->SetVisibility(0);
+    }
+    
+    autoScaleIfNeeded();
+    render();
+}
+
+// 获取所有热力图曲面ID
+QStringList vtkPlotBase::getHeatmapSurfaceIds() const
+{
+    return m_heatmapSurfaces.keys();
+}
+
+// 创建等高线投影（投影到坐标系Y轴最小值平面）
+// 等高线颜色与曲面对应高度的颜色一致（使用相同的lookupTable）
+void vtkPlotBase::createContourProjection(HeatmapSurfaceData &surface, double heightMin, double heightMax)
+{
+    // ==================== 创建等高线过滤器 ====================
+    // vtkContourFilter根据标量值生成等值线/等值面
+    // 输入曲面数据，输出等高线几何
+    vtkSmartPointer<vtkContourFilter> contourFilter = vtkSmartPointer<vtkContourFilter>::New();
+    contourFilter->SetInputData(surface.polyData);   // 输入曲面多边形数据
+    contourFilter->ComputeNormalsOff();              // 不计算法线（不需要）
+    
+    // ==================== 设置等高线值 ====================
+    // 按指定数量均匀分布等高线
+    // 等高线不包含边界值（heightMin和heightMax），只取中间值
+    int numContours = surface.contourCount;          // 等高线数量
+    double range = heightMax - heightMin;            // 高度范围
+    double step = range / (numContours + 1);         // 步长（均匀分布）
+    
+    // 设置每条等高线的高度值
+    // 例如：范围0-10，5条等高线，步长=10/6≈1.67
+    // 等高线位置：1.67, 3.33, 5.0, 6.67, 8.33
+    for (int i = 1; i <= numContours; ++i) {
+        contourFilter->SetValue(i - 1, heightMin + i * step);
+    }
+    contourFilter->Update();  // 执行过滤器，生成等高线
+    
+    // ==================== 准备投影数据 ====================
+    // 创建投影后的等高线数据结构
+    vtkSmartPointer<vtkPolyData> projectedContour = vtkSmartPointer<vtkPolyData>::New();
+    vtkSmartPointer<vtkPoints> projectedPoints = vtkSmartPointer<vtkPoints>::New();
+    
+    // 创建标量数组，保存原始高度值（用于着色）
+    // 投影后点的Y坐标变为contourBaseY，需要单独保存原始高度用于颜色映射
+    vtkSmartPointer<vtkFloatArray> projectedScalars = vtkSmartPointer<vtkFloatArray>::New();
+    projectedScalars->SetNumberOfComponents(1);      // 单分量标量
+    projectedScalars->SetName("Height");             // 标量名称
+    
+    // 获取等高线过滤器的输出
+    vtkPolyData* contourOutput = contourFilter->GetOutput();
+    vtkPoints* contourPoints = contourOutput->GetPoints();
+    
+    // ==================== 投影等高线点 ====================
+    // 将等高线从曲面位置投影到坐标系Y轴最小值平面
+    // 保留X和Z坐标，Y坐标设为contourBaseY（坐标系底部）
+    for (vtkIdType i = 0; i < contourPoints->GetNumberOfPoints(); ++i) {
+        double pt[3];
+        contourPoints->GetPoint(i, pt);              // 获取原始点坐标
+        
+        // 投影到坐标系Y轴最小值平面
+        // pt[0]: X坐标不变
+        // pt[1]: 原始高度值 → 投影后变为contourBaseY
+        // pt[2]: Z坐标不变
+        projectedPoints->InsertNextPoint(pt[0], surface.contourBaseY, pt[2]);
+        
+        // 保存原始高度值（pt[1]）作为标量，用于颜色映射
+        // 这样投影后的等高线仍显示原始高度对应的颜色
+        projectedScalars->InsertNextValue(pt[1]);
+    }
+    
+    // ==================== 构建投影等高线数据 ====================
+    projectedContour->SetPoints(projectedPoints);           // 设置投影后的点
+    projectedContour->SetLines(contourOutput->GetLines());   // 复制原始等高线的拓扑（线段连接）
+    projectedContour->GetPointData()->SetScalars(projectedScalars);  // 设置标量数据
+    
+    // ==================== 创建等高线映射器 ====================
+    // 使用与曲面相同的lookupTable，确保颜色一致
+    surface.contourMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    surface.contourMapper->SetInputData(projectedContour);
+    surface.contourMapper->SetScalarModeToUsePointData();          // 使用点数据中的标量
+    surface.contourMapper->SetScalarRange(heightMin, heightMax);    // 设置标量范围
+    surface.contourMapper->SetLookupTable(surface.lookupTable);     // 使用曲面的颜色查找表
+    surface.contourMapper->UseLookupTableScalarRangeOn();           // 使用查找表的标量范围
+    surface.contourMapper->ScalarVisibilityOn();                    // 启用标量着色
+    
+    // ==================== 创建等高线演员 ====================
+    surface.contourActor = vtkSmartPointer<vtkActor>::New();
+    surface.contourActor->SetMapper(surface.contourMapper);
+    // 注意：不调用SetColor()，让mapper使用lookupTable着色
+    // 如果调用SetColor()会覆盖标量着色效果
+    surface.contourActor->GetProperty()->SetLineWidth(1.5);         // 线宽
+    surface.contourActor->SetVisibility(surface.contourVisible ? 1 : 0);  // 设置可见性
+    
+    // ==================== 添加到场景 ====================
+    m_renderer->AddActor(surface.contourActor);
+}
+
+// 设置等高线可见性
+void vtkPlotBase::setHeatmapContourVisible(const QString &surfaceId, bool visible)
+{
+    if (m_heatmapSurfaces.contains(surfaceId)) {
+        m_heatmapSurfaces[surfaceId].contourVisible = visible;
+        if (m_heatmapSurfaces[surfaceId].contourActor) {
+            m_heatmapSurfaces[surfaceId].contourActor->SetVisibility(visible ? 1 : 0);
+        }
+        render();
+    }
+}
+
+// 设置等高线数量
+void vtkPlotBase::setHeatmapContourCount(const QString &surfaceId, int count)
+{
+    if (!m_heatmapSurfaces.contains(surfaceId)) return;
+    if (count < 1) return;
+    
+    HeatmapSurfaceData &surface = m_heatmapSurfaces[surfaceId];
+    surface.contourCount = count;
+    
+    // 重新创建等高线
+    if (surface.contourActor) {
+        m_renderer->RemoveActor(surface.contourActor);
+    }
+    createContourProjection(surface, surface.zMin, surface.zMax);
+    render();
+}
+

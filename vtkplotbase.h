@@ -17,6 +17,7 @@
 #include <vtkPolyLine.h>
 #include <vtkCellArray.h>
 #include <vtkPolyData.h>
+#include <vtkQuad.h>
 #include <vtkDiskSource.h>
 #include <vtkRegularPolygonSource.h>
 #include <vtkTransform.h>
@@ -30,6 +31,12 @@
 #include <vtkInteractorStyleTrackballCamera.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkLegendBoxActor.h>
+#include <vtkLookupTable.h>
+#include <vtkScalarBarActor.h>
+#include <vtkFloatArray.h>
+#include <vtkPointData.h>
+#include <vtkContourFilter.h>
+#include <vtkStripper.h>
 
 // VTK Qt 控件前向声明
 class QVTKOpenGLNativeWidget;
@@ -59,6 +66,41 @@ struct MarkerData
     bool visible;                                         // 可见性
     double radius;                                        // 半径
     double lineWidth;                                     // 线宽
+};
+
+// 曲面数据结构
+struct SurfaceData
+{
+    QString id;                                           // 唯一标识符
+    QString name;                                         // 图例名称
+    vtkSmartPointer<vtkPolyData> polyData;                // 多边形数据
+    vtkSmartPointer<vtkPolyDataMapper> mapper;            // 映射器
+    vtkSmartPointer<vtkActor> actor;                      // 演员
+    bool visible;                                         // 可见性
+    double opacity;                                       // 不透明度 (0.0 - 1.0)
+};
+
+// 热力图曲面数据结构
+struct HeatmapSurfaceData
+{
+    QString id;                                           // 唯一标识符
+    QString name;                                         // 图例名称
+    vtkSmartPointer<vtkPolyData> polyData;                // 多边形数据
+    vtkSmartPointer<vtkPolyDataMapper> mapper;            // 映射器
+    vtkSmartPointer<vtkActor> actor;                      // 演员
+    vtkSmartPointer<vtkLookupTable> lookupTable;          // 颜色查找表
+    bool visible;                                         // 可见性
+    double opacity;                                       // 不透明度 (0.0 - 1.0)
+    double zMin;                                          // Z值最小值
+    double zMax;                                          // Z值最大值
+    
+    // 等高线投影相关
+    vtkSmartPointer<vtkPolyData> contourPolyData;         // 等高线数据
+    vtkSmartPointer<vtkPolyDataMapper> contourMapper;     // 等高线映射器
+    vtkSmartPointer<vtkActor> contourActor;               // 等高线演员
+    bool contourVisible;                                  // 等高线可见性
+    int contourCount;                                     // 等高线数量
+    double contourBaseY;                                  // 等高线投影基准Y值
 };
 
 QT_BEGIN_NAMESPACE
@@ -168,8 +210,41 @@ public:
     void clearAllFilledMarkers();                                                                     // 清除所有填充圆标记
     QStringList getFilledMarkerIds() const;                                                           // 获取所有填充标记ID
 
+    // ===== 曲面操作 =====
+    QString addSurface(const QVector<QVector3D> &points, int nx, int ny,                              // 添加曲面（网格点）
+                       const QColor &color = QColor(0, 150, 200),
+                       double opacity = 0.7);
+    QString addSurface(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,    // 添加曲面（网格坐标）
+                       int nx, int ny,
+                       const QColor &color = QColor(0, 150, 200),
+                       double opacity = 0.7);
+    void setSurfaceVisible(const QString &surfaceId, bool visible);                                    // 设置曲面可见性
+    void setSurfaceColor(const QString &surfaceId, const QColor &color);                               // 设置曲面颜色
+    void setSurfaceOpacity(const QString &surfaceId, double opacity);                                  // 设置曲面不透明度
+    void setSurfaceName(const QString &surfaceId, const QString &name);                                // 设置曲面图例名称
+    void removeSurface(const QString &surfaceId);                                                      // 移除曲面
+    void clearAllSurfaces();                                                                           // 清除所有曲面
+    QStringList getSurfaceIds() const;                                                                 // 获取所有曲面ID
+
+    // ===== 热力图曲面操作 =====
+    QString addHeatmapSurface(const QVector<QVector3D> &points, int nx, int ny,                        // 添加热力图曲面（网格点）
+                              const QString &colorBarTitle = "Z Value");
+    QString addHeatmapSurface(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,    // 添加热力图曲面（网格坐标）
+                              int nx, int ny,
+                              const QString &colorBarTitle = "Z Value");
+    void setHeatmapSurfaceVisible(const QString &surfaceId, bool visible);                             // 设置热力图曲面可见性
+    void setHeatmapSurfaceOpacity(const QString &surfaceId, double opacity);                           // 设置热力图曲面不透明度
+    void setHeatmapSurfaceName(const QString &surfaceId, const QString &name);                         // 设置热力图曲面图例名称
+    void setHeatmapColorBarVisible(bool visible);                                                      // 设置颜色条可见性
+    void setHeatmapColorBarTitle(const QString &title);                                                // 设置颜色条标题
+    void setHeatmapContourVisible(const QString &surfaceId, bool visible);                             // 设置等高线可见性
+    void setHeatmapContourCount(const QString &surfaceId, int count);                                  // 设置等高线数量
+    void removeHeatmapSurface(const QString &surfaceId);                                               // 移除热力图曲面
+    void clearAllHeatmapSurfaces();                                                                    // 清除所有热力图曲面
+    QStringList getHeatmapSurfaceIds() const;                                                          // 获取所有热力图曲面ID
+
     // ===== 清除所有 =====
-    void clearAll();                                                                                  // 清除所有曲线和标记
+    void clearAll();                                                                                  // 清除所有曲线、标记和曲面
 
 private:
     Ui::vtkPlotBase *ui;
@@ -183,6 +258,11 @@ private:
     // 数据存储
     QMap<QString, CurveData> m_curves;                      // 曲线集合<UUID, CurveData>
     QMap<QString, MarkerData> m_markers;                    // 标记点集合<UUID, MarkerData>
+    QMap<QString, SurfaceData> m_surfaces;                  // 曲面集合<UUID, SurfaceData>
+    QMap<QString, HeatmapSurfaceData> m_heatmapSurfaces;    // 热力图曲面集合<UUID, HeatmapSurfaceData>
+    
+    // 颜色条
+    vtkSmartPointer<vtkScalarBarActor> m_scalarBarActor;    // 颜色条演员
 
     // 坐标轴范围
     double m_xMin, m_xMax, m_yMin, m_yMax, m_zMin, m_zMax;
@@ -207,10 +287,13 @@ private:
     void saveDefaultCamera();                               // 保存默认相机参数
     void updateLegend();                                    // 更新图例
     void updateLegendPosition();                            // 更新图例位置
+    void updateLegendPositionForSize(double legendWidth, double legendHeight);  // 根据大小更新图例位置
     QString generateId();                                   // 生成唯一ID
     void updateAxesBounds();                                // 更新坐标轴边界
     void computeDataBounds(double &xMin, double &xMax, double &yMin, double &yMax, double &zMin, double &zMax);  // 计算数据边界
     void autoScaleIfNeeded();                               // 按需自适应缩放
+    void updateScalarBar(double zMin, double zMax, const QString &title);  // 更新颜色条
+    void createContourProjection(HeatmapSurfaceData &surface, double heightMin, double heightMax);  // 创建等高线投影
     void render();                                          // 渲染场景
 };
 #endif // VTKPLOTBASE_H
