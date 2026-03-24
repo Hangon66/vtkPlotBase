@@ -170,12 +170,10 @@ public:
     void setMarkerName(const QString &markerId, const QString &name);                                 // 设置标记点图例名称
 
     // ===== 曲线操作 =====
-    QString addCurve(const QVector<QVector3D> &points,                                                // 添加曲线（3D点集）
-                     const QColor &color = QColor(0, 120, 255), 
-                     double lineWidth = 2.0);
-    QString addCurve(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,    // 添加曲线（分离坐标）
-                     const QColor &color = QColor(0, 120, 255), 
-                     double lineWidth = 2.0);
+    QString addCurve(const QVector<QVector3D> &points,                                                // 添加曲线（指定颜色）
+                     const QColor &color,
+                     double lineWidth);
+    QString addCurve(const QVector<QVector3D> &points, double lineWidth = 2.0);                          // 添加曲线（自动颜色）
     void setCurveVisible(const QString &curveId, bool visible);                                       // 设置曲线可见性
     void setCurveColor(const QString &curveId, const QColor &color);                                  // 设置曲线颜色
     void setCurveLineWidth(const QString &curveId, double lineWidth);                                 // 设置曲线线宽
@@ -186,9 +184,10 @@ public:
 
     // ===== 空心环标记操作 =====
     QString addHollowMarker(const QVector3D &position,                                                // 添加空心环标记
-                            const QColor &color = QColor(255, 0, 0),
+                            const QColor &color,
                             double radius = 0.03,
                             double lineWidth = 1.0);
+    QString addHollowMarker(const QVector3D &position, double radius = 0.03, double lineWidth = 1.0);   // 添加空心环标记（自动颜色）
     void setMarkerVisible(const QString &markerId, bool visible);                                     // 设置标记可见性
     void setMarkerColor(const QString &markerId, const QColor &color);                                // 设置标记颜色
     void setMarkerRadius(const QString &markerId, double radius);                                     // 设置标记半径
@@ -200,8 +199,9 @@ public:
 
     // ===== 填充圆标记操作 =====
     QString addFilledMarker(const QVector3D &position,                                                // 添加填充圆标记
-                            const QColor &color = QColor(0, 200, 0),
+                            const QColor &color,
                             double radius = 0.03);
+    QString addFilledMarker(const QVector3D &position, double radius = 0.03);                           // 添加填充圆标记（自动颜色）
     void setFilledMarkerVisible(const QString &markerId, bool visible);                               // 设置标记可见性
     void setFilledMarkerColor(const QString &markerId, const QColor &color);                          // 设置标记颜色
     void setFilledMarkerRadius(const QString &markerId, double radius);                               // 设置标记半径
@@ -212,12 +212,9 @@ public:
 
     // ===== 曲面操作 =====
     QString addSurface(const QVector<QVector3D> &points, int nx, int ny,                              // 添加曲面（网格点）
-                       const QColor &color = QColor(0, 150, 200),
-                       double opacity = 0.7);
-    QString addSurface(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,    // 添加曲面（网格坐标）
-                       int nx, int ny,
-                       const QColor &color = QColor(0, 150, 200),
-                       double opacity = 0.7);
+                       const QColor &color,
+                       double opacity);
+    QString addSurface(const QVector<QVector3D> &points, int nx, int ny, double opacity = 0.7);          // 添加曲面（自动颜色）
     void setSurfaceVisible(const QString &surfaceId, bool visible);                                    // 设置曲面可见性
     void setSurfaceColor(const QString &surfaceId, const QColor &color);                               // 设置曲面颜色
     void setSurfaceOpacity(const QString &surfaceId, double opacity);                                  // 设置曲面不透明度
@@ -227,10 +224,7 @@ public:
     QStringList getSurfaceIds() const;                                                                 // 获取所有曲面ID
 
     // ===== 热力图曲面操作 =====
-    QString addHeatmapSurface(const QVector<QVector3D> &points, int nx, int ny,                        // 添加热力图曲面（网格点）
-                              const QString &colorBarTitle = "Z Value");
-    QString addHeatmapSurface(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,    // 添加热力图曲面（网格坐标）
-                              int nx, int ny,
+    QString addHeatmapSurface(const QVector<QVector3D> &points, int nx, int ny,                        // 添加热力图曲面
                               const QString &colorBarTitle = "Z Value");
     void setHeatmapSurfaceVisible(const QString &surfaceId, bool visible);                             // 设置热力图曲面可见性
     void setHeatmapSurfaceOpacity(const QString &surfaceId, double opacity);                           // 设置热力图曲面不透明度
@@ -280,6 +274,10 @@ private:
     // 图例
     bool m_legendVisible;                                   // 图例可见性
     LegendPosition m_legendPosition;                        // 图例位置
+    
+    // 自动颜色
+    int m_autoColorIndex;                                   // 自动颜色索引
+    QColor getNextAutoColor();                               // 获取下一个自动颜色
 
     void setupVTK();                                        // 初始化 VTK
     void createAxes();                                      // 创建坐标轴

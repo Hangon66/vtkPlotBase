@@ -73,6 +73,7 @@ vtkPlotBase::vtkPlotBase(QWidget *parent)
     , m_autoScaleMargin(0.1)  // 10% 边距
     , m_legendVisible(true)
     , m_legendPosition(LegendPosition::TopRight)
+    , m_autoColorIndex(0)
 {
     ui->setupUi(this);
     setupVTK();
@@ -410,6 +411,29 @@ void vtkPlotBase::updateLegendPositionForSize(double legendWidth, double legendH
 }
 
 // 生成唯一ID（UUID格式）
+// 获取下一个自动颜色
+QColor vtkPlotBase::getNextAutoColor()
+{
+    // 预定义的区分度高的颜色列表
+    static const QColor colorPalette[] = {
+        QColor(31, 119, 180),   // 蓝色
+        QColor(255, 127, 14),   // 橙色
+        QColor(44, 160, 44),    // 绿色
+        QColor(214, 39, 40),    // 红色
+        QColor(148, 103, 189),  // 紫色
+        QColor(140, 86, 75),    // 棕色
+        QColor(227, 119, 194),  // 粉色
+        QColor(127, 127, 127),  // 灰色
+        QColor(188, 189, 34),   // 黄绿
+        QColor(23, 190, 187),   // 青色
+    };
+    static const int paletteSize = sizeof(colorPalette) / sizeof(colorPalette[0]);
+    
+    QColor color = colorPalette[m_autoColorIndex % paletteSize];
+    m_autoColorIndex++;
+    return color;
+}
+
 QString vtkPlotBase::generateId()
 {
     return QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -857,17 +881,10 @@ QString vtkPlotBase::addCurve(const QVector<QVector3D> &points, const QColor &co
     return id;
 }
 
-// 添加曲线（分离的X/Y/Z数组）
-QString vtkPlotBase::addCurve(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,
-                              const QColor &color, double lineWidth)
+// 添加曲线（自动颜色）
+QString vtkPlotBase::addCurve(const QVector<QVector3D> &points, double lineWidth)
 {
-    if (x.size() != y.size() || x.size() != z.size() || x.size() < 2) return QString();
-
-    QVector<QVector3D> points;
-    for (int i = 0; i < x.size(); ++i) {
-        points.append(QVector3D(x[i], y[i], z[i]));
-    }
-    return addCurve(points, color, lineWidth);
+    return addCurve(points, getNextAutoColor(), lineWidth);
 }
 
 // 设置曲线可见性
@@ -999,6 +1016,12 @@ QString vtkPlotBase::addHollowMarker(const QVector3D &position, const QColor &co
     return id;
 }
 
+// 添加空心环标记（自动颜色）
+QString vtkPlotBase::addHollowMarker(const QVector3D &position, double radius, double lineWidth)
+{
+    return addHollowMarker(position, getNextAutoColor(), radius, lineWidth);
+}
+
 // 设置标记可见性
 void vtkPlotBase::setMarkerVisible(const QString &markerId, bool visible)
 {
@@ -1126,6 +1149,12 @@ QString vtkPlotBase::addFilledMarker(const QVector3D &position, const QColor &co
     updateLegend();
 
     return id;
+}
+
+// 添加填充圆标记（自动颜色）
+QString vtkPlotBase::addFilledMarker(const QVector3D &position, double radius)
+{
+    return addFilledMarker(position, getNextAutoColor(), radius);
 }
 
 // 设置填充标记可见性（委托给通用标记函数）
@@ -1294,18 +1323,10 @@ QString vtkPlotBase::addSurface(const QVector<QVector3D> &points, int nx, int ny
     return id;
 }
 
-// 添加曲面（分离的X/Y/Z数组）
-QString vtkPlotBase::addSurface(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,
-                                int nx, int ny, const QColor &color, double opacity)
+// 添加曲面（自动颜色）
+QString vtkPlotBase::addSurface(const QVector<QVector3D> &points, int nx, int ny, double opacity)
 {
-    if (x.size() != y.size() || x.size() != z.size() || x.size() < 4) return QString();
-    if (x.size() != nx * ny) return QString();
-
-    QVector<QVector3D> points;
-    for (int i = 0; i < x.size(); ++i) {
-        points.append(QVector3D(x[i], y[i], z[i]));
-    }
-    return addSurface(points, nx, ny, color, opacity);
+    return addSurface(points, nx, ny, getNextAutoColor(), opacity);
 }
 
 // 设置曲面可见性
@@ -1533,20 +1554,6 @@ QString vtkPlotBase::addHeatmapSurface(const QVector<QVector3D> &points, int nx,
     updateScalarBar(heightMin, heightMax, colorBarTitle);
 
     return id;
-}
-
-// 添加热力图曲面（分离的X/Y/Z数组）
-QString vtkPlotBase::addHeatmapSurface(const QVector<double> &x, const QVector<double> &y, const QVector<double> &z,
-                                       int nx, int ny, const QString &colorBarTitle)
-{
-    if (x.size() != y.size() || x.size() != z.size() || x.size() < 4) return QString();
-    if (x.size() != nx * ny) return QString();
-
-    QVector<QVector3D> points;
-    for (int i = 0; i < x.size(); ++i) {
-        points.append(QVector3D(x[i], y[i], z[i]));
-    }
-    return addHeatmapSurface(points, nx, ny, colorBarTitle);
 }
 
 // 更新颜色条
