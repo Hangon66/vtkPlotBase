@@ -37,6 +37,8 @@
 #include <vtkPointData.h>
 #include <vtkContourFilter.h>
 #include <vtkStripper.h>
+#include <vtkCallbackCommand.h>
+#include <vtkCommand.h>
 
 // VTK Qt 控件前向声明
 class QVTKOpenGLNativeWidget;
@@ -54,6 +56,13 @@ struct CurveData
     bool visible;                                         // 可见性
 };
 
+// 标记点大小模式
+enum class MarkerSizeMode {
+    Absolute,    // 绝对半径模式（固定世界坐标值）
+    Relative,    // 相对半径模式（占X轴范围的比例）
+    Screen       // 屏幕固定大小模式（像素）
+};
+
 // 标记点数据结构
 struct MarkerData
 {
@@ -64,8 +73,11 @@ struct MarkerData
     vtkSmartPointer<vtkFollower> follower;                // 跟随者（始终面向相机）
     bool filled;                                          // true=填充圆, false=空心环
     bool visible;                                         // 可见性
-    double radius;                                        // 半径
+    double radius;                                        // 半径（世界坐标）
     double lineWidth;                                     // 线宽
+    double relativeRadius;                                // 相对半径（占X轴范围的比例）
+    double screenSize;                                    // 屏幕大小（像素）
+    MarkerSizeMode sizeMode;                              // 大小模式
 };
 
 // 曲面数据结构
@@ -148,6 +160,10 @@ public:
     explicit vtkPlotBase(QWidget *parent = nullptr);
     ~vtkPlotBase();
 
+protected:
+    void showEvent(QShowEvent *event) override;    // 窗口显示事件，用于更新屏幕固定大小标记点
+
+public:
     // ===== 坐标系操作 =====
     void setAxisRange(double xMin, double xMax, double yMin, double yMax, double zMin, double zMax);  // 设置坐标轴范围
     void setAxisTitles(const QString &xTitle, const QString &yTitle, const QString &zTitle);          // 设置坐标轴标题
@@ -183,14 +199,21 @@ public:
     QStringList getCurveIds() const;                                                                  // 获取所有曲线ID
 
     // ===== 空心环标记操作 =====
-    QString addHollowMarker(const QVector3D &position,                                                // 添加空心环标记
+    QString addHollowMarker(const QVector3D &position,                                                // 添加空心环标记（屏幕固定大小）
                             const QColor &color,
-                            double radius = 0.06,
+                            double screenSize = 10.0,
                             double lineWidth = 2.0);
-    QString addHollowMarker(const QVector3D &position, double radius = 0.06, double lineWidth = 2.0);   // 添加空心环标记（自动颜色）
+    QString addHollowMarker(const QVector3D &position);                                               // 添加空心环标记（自动颜色，默认屏幕大小10像素）
+    QString addScreenHollowMarker(const QVector3D &position,                                          // 添加屏幕固定大小空心环标记
+                                  const QColor &color,
+                                  double screenSize = 10.0,
+                                  double lineWidth = 2.0);
+    QString addScreenHollowMarker(const QVector3D &position);                                         // 添加屏幕固定大小空心环标记（自动颜色，默认10像素）
     void setMarkerVisible(const QString &markerId, bool visible);                                     // 设置标记可见性
     void setMarkerColor(const QString &markerId, const QColor &color);                                // 设置标记颜色
-    void setMarkerRadius(const QString &markerId, double radius);                                     // 设置标记半径
+    void setMarkerRadius(const QString &markerId, double radius);                                     // 设置标记半径（绝对值）
+    void setMarkerRelativeRadius(const QString &markerId, double ratio);                              // 设置标记相对半径（占X轴范围的比例，如0.02表示2%）
+    void setMarkerScreenSize(const QString &markerId, double screenSize);                             // 设置标记屏幕大小（像素）
     void setMarkerLineWidth(const QString &markerId, double lineWidth);                               // 设置标记线宽
     void updateMarkerPosition(const QString &markerId, const QVector3D &position);                   // 更新标记位置
     void removeMarker(const QString &markerId);                                                       // 移除标记
@@ -198,13 +221,19 @@ public:
     QStringList getMarkerIds() const;                                                                 // 获取所有标记ID
 
     // ===== 填充圆标记操作 =====
-    QString addFilledMarker(const QVector3D &position,                                                // 添加填充圆标记
+    QString addFilledMarker(const QVector3D &position,                                                // 添加填充圆标记（屏幕固定大小）
                             const QColor &color,
-                            double radius = 0.05);
-    QString addFilledMarker(const QVector3D &position, double radius = 0.05);                           // 添加填充圆标记（自动颜色）
+                            double screenSize = 10.0);
+    QString addFilledMarker(const QVector3D &position);                                               // 添加填充圆标记（自动颜色，默认屏幕大小10像素）
+    QString addScreenFilledMarker(const QVector3D &position,                                          // 添加屏幕固定大小填充圆标记
+                                  const QColor &color,
+                                  double screenSize = 10.0);
+    QString addScreenFilledMarker(const QVector3D &position);                                         // 添加屏幕固定大小填充圆标记（自动颜色，默认10像素）
     void setFilledMarkerVisible(const QString &markerId, bool visible);                               // 设置标记可见性
     void setFilledMarkerColor(const QString &markerId, const QColor &color);                          // 设置标记颜色
-    void setFilledMarkerRadius(const QString &markerId, double radius);                               // 设置标记半径
+    void setFilledMarkerRadius(const QString &markerId, double radius);                               // 设置标记半径（绝对值）
+    void setFilledMarkerRelativeRadius(const QString &markerId, double ratio);                        // 设置标记相对半径（占X轴范围的比例，如0.02表示2%）
+    void setFilledMarkerScreenSize(const QString &markerId, double screenSize);                       // 设置标记屏幕大小（像素）
     void updateFilledMarkerPosition(const QString &markerId, const QVector3D &position);             // 更新标记位置
     void removeFilledMarker(const QString &markerId);                                                 // 移除标记
     void clearAllFilledMarkers();                                                                     // 清除所有填充圆标记
@@ -248,6 +277,7 @@ private:
     vtkSmartPointer<vtkRenderer> m_renderer;                // 渲染器
     vtkSmartPointer<vtkCubeAxesActor> m_cubeAxesActor;      // 三维坐标轴演员
     vtkSmartPointer<vtkLegendBoxActor> m_legendActor;       // 图例演员
+    vtkSmartPointer<vtkCallbackCommand> m_cameraCallback;   // 相机回调命令（用于屏幕固定大小标记）
 
     // 数据存储
     QMap<QString, CurveData> m_curves;                      // 曲线集合<UUID, CurveData>
@@ -292,6 +322,12 @@ private:
     void autoScaleIfNeeded();                               // 按需自适应缩放
     void updateScalarBar(double zMin, double zMax, const QString &title);  // 更新颜色条
     void createContourProjection(HeatmapSurfaceData &surface, double heightMin, double heightMax);  // 创建等高线投影
+    void updateAllMarkerScales();                           // 更新所有标记点的缩放（基于相对半径）
+    void updateMarkerScale(MarkerData &marker);             // 更新单个标记点的缩放
+    void updateAllScreenMarkerScales();                     // 更新所有屏幕固定大小标记点的缩放
+    void updateScreenMarkerScale(MarkerData &marker);       // 更新单个屏幕固定大小标记点的缩放
+    void setupCameraCallback();                             // 设置相机回调（用于屏幕固定大小标记）
+    static void cameraCallback(vtkObject* caller, unsigned long eventId, void* clientData, void* callData);  // 相机回调静态函数
     void render();                                          // 渲染场景
 };
 #endif // VTKPLOTBASE_H

@@ -42,20 +42,21 @@ int main(int argc, char *argv[])
         helixPoints.append(QVector3D(x, y, z));
     }
     QString helixId = w.addCurve(helixPoints);
-    w.setCurveColor(helixId, Qt::red);
-    w.setCurveWidth(helixId, 2.0);
+    // w.setCurveColor(helixId, Qt::red);
+    // w.setCurveWidth(helixId, 2.0);
     w.setCurveName(helixId, "111");
 
     // 原点（白色大圆）
     QString originId1 = w.addFilledMarker(QVector3D(0, 0, 0));
-    w.setFilledMarkerColor(originId1, Qt::white);
-    w.setFilledMarkerRadius(originId1, 0.25);
+    // w.setFilledMarkerColor(originId1, Qt::white);
+    // w.setFilledMarkerRadius(originId1, 0.25);
+    w.setMarkerName(originId1, "11");
 
     // 标记原点（红色，大圆环）
-    QString originId = w.addHollowMarker(QVector3D(0, 0, 0));
-    w.setMarkerColor(originId, Qt::red);
-    w.setMarkerRadius(originId, 0.3);
-    w.setMarkerLineWidth(originId, 2.0);
+    QString originId = w.addHollowMarker(QVector3D(5, 5, 5));
+    // w.setMarkerColor(originId, Qt::red);
+    // w.setMarkerRadius(originId, 0.3);
+    // w.setMarkerLineWidth(originId, 2.0);
     w.setMarkerName(originId, "22");
     
     // ==================== 示例1：抛物面 ====================

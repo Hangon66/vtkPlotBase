@@ -8,6 +8,8 @@
 #include <vtkInteractorStyleTrackballCamera.h>
 #include <vtkCamera.h>
 #include <vtkObjectFactory.h>
+#include <vtkMath.h>
+#include <vtkCommand.h>
 
 #include <limits>
 #include <algorithm>
@@ -15,6 +17,7 @@
 #include <string>
 #include <QDebug>
 #include <QtGlobal>
+#include <QShowEvent>
 
 // ==================== 自定义交互器样式 ====================
 // 处理键盘快捷键：R(重置视角)、X(侧视图)、Y(俯视图)、Z(前视图)
@@ -84,6 +87,16 @@ vtkPlotBase::~vtkPlotBase()
     delete ui;
 }
 
+// 窗口显示事件，用于更新屏幕固定大小标记点
+void vtkPlotBase::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
+
+    // 窗口显示后更新所有屏幕固定大小标记点
+    updateAllScreenMarkerScales();
+    render();
+}
+
 // ==================== 私有方法 ====================
 
 void vtkPlotBase::setupVTK()
@@ -118,6 +131,9 @@ void vtkPlotBase::setupVTK()
     
     // 保存默认相机参数
     saveDefaultCamera();
+
+    // 设置相机回调（用于屏幕固定大小标记点）
+    setupCameraCallback();
 
     // 设置自定义交互器样式（处理 R 键重置视角）
     vtkSmartPointer<vtkPlotBaseInteractorStyle> style =
@@ -472,15 +488,18 @@ void vtkPlotBase::updateAxesBounds()
              << "X[" << m_xMin << "," << m_xMax << "]"
              << "Y[" << m_yMin << "," << m_yMax << "]"
              << "Z[" << m_zMin << "," << m_zMax << "]";
-    
+
     // 设置立方体边界（三维空间中的物理范围）
     m_cubeAxesActor->SetBounds(m_xMin, m_xMax, m_yMin, m_yMax, m_zMin, m_zMax);
-    
+
     // 设置坐标轴标签范围
     m_cubeAxesActor->SetXAxisRange(m_xMin, m_xMax);
     m_cubeAxesActor->SetYAxisRange(m_yMin, m_yMax);
     m_cubeAxesActor->SetZAxisRange(m_zMin, m_zMax);
-    
+
+    // 更新相对半径模式的标记点大小
+    updateAllMarkerScales();
+
     m_renderer->ResetCamera();
     render();
 }
@@ -1002,21 +1021,24 @@ QStringList vtkPlotBase::getCurveIds() const
 
 // ==================== 空心环标记操作 ====================
 
-// 添加空心环标记
-QString vtkPlotBase::addHollowMarker(const QVector3D &position, const QColor &color, double radius, double lineWidth)
+// 添加空心环标记（屏幕固定大小）
+QString vtkPlotBase::addHollowMarker(const QVector3D &position, const QColor &color, double screenSize, double lineWidth)
 {
     QString id = generateId();
     MarkerData marker;
     marker.id = id;
     marker.filled = false;
     marker.visible = true;
-    marker.radius = radius;
+    marker.radius = 1.0;             // 初始半径，后续动态调整
     marker.lineWidth = lineWidth;
+    marker.relativeRadius = 0.0;    // 不使用相对半径模式
+    marker.screenSize = screenSize;
+    marker.sizeMode = MarkerSizeMode::Screen;  // 屏幕固定大小模式
 
-    // 创建圆盘源（空心环）
+    // 创建圆盘源（空心环），使用单位半径
     vtkSmartPointer<vtkDiskSource> diskSource = vtkSmartPointer<vtkDiskSource>::New();
-    diskSource->SetInnerRadius(radius * 0.6);   // 内半径（孔）
-    diskSource->SetOuterRadius(radius);          // 外半径（边）
+    diskSource->SetInnerRadius(0.6);   // 内半径（孔）
+    diskSource->SetOuterRadius(1.0);   // 外半径（边）
     diskSource->SetCircumferentialResolution(64);
     diskSource->Update();
 
@@ -1036,6 +1058,10 @@ QString vtkPlotBase::addHollowMarker(const QVector3D &position, const QColor &co
 
     m_renderer->AddActor(marker.follower);
     m_markers[id] = marker;
+
+    // 初始更新屏幕大小
+    updateScreenMarkerScale(m_markers[id]);
+
     autoScaleIfNeeded();
     updateLegend();
 
@@ -1043,9 +1069,62 @@ QString vtkPlotBase::addHollowMarker(const QVector3D &position, const QColor &co
 }
 
 // 添加空心环标记（自动颜色）
-QString vtkPlotBase::addHollowMarker(const QVector3D &position, double radius, double lineWidth)
+QString vtkPlotBase::addHollowMarker(const QVector3D &position)
 {
-    return addHollowMarker(position, getNextAutoColor(), radius, lineWidth);
+    return addHollowMarker(position, getNextAutoColor(), 10.0, 2.0);
+}
+
+// 添加屏幕固定大小空心环标记
+QString vtkPlotBase::addScreenHollowMarker(const QVector3D &position, const QColor &color, double screenSize, double lineWidth)
+{
+    QString id = generateId();
+    MarkerData marker;
+    marker.id = id;
+    marker.filled = false;
+    marker.visible = true;
+    marker.radius = 1.0;            // 初始半径，后续动态调整
+    marker.lineWidth = lineWidth;
+    marker.relativeRadius = 0.0;   // 不使用相对半径模式
+    marker.screenSize = screenSize;
+    marker.sizeMode = MarkerSizeMode::Screen;  // 屏幕固定大小模式
+
+    // 创建圆盘源（空心环），使用单位半径
+    vtkSmartPointer<vtkDiskSource> diskSource = vtkSmartPointer<vtkDiskSource>::New();
+    diskSource->SetInnerRadius(0.6);   // 内半径（孔）
+    diskSource->SetOuterRadius(1.0);   // 外半径（边）
+    diskSource->SetCircumferentialResolution(64);
+    diskSource->Update();
+
+    marker.polyData = diskSource->GetOutput();
+
+    // 创建映射器
+    marker.mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    marker.mapper->SetInputConnection(diskSource->GetOutputPort());
+
+    // 创建跟随者（始终面向相机）
+    marker.follower = vtkSmartPointer<vtkFollower>::New();
+    marker.follower->SetMapper(marker.mapper);
+    marker.follower->SetPosition(position.x(), position.y(), position.z());
+    marker.follower->SetCamera(m_renderer->GetActiveCamera());
+    marker.follower->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
+    marker.follower->GetProperty()->SetLineWidth(lineWidth);
+
+    m_renderer->AddActor(marker.follower);
+    m_markers[id] = marker;
+
+    // 初始更新屏幕大小
+    updateScreenMarkerScale(m_markers[id]);
+
+    autoScaleIfNeeded();
+    updateLegend();
+
+    return id;
+}
+
+// 添加屏幕固定大小空心环标记（自动颜色）
+QString vtkPlotBase::addScreenHollowMarker(const QVector3D &position)
+{
+    return addScreenHollowMarker(position, getNextAutoColor(), 10.0, 2.0);
 }
 
 // 设置标记可见性
@@ -1068,13 +1147,16 @@ void vtkPlotBase::setMarkerColor(const QString &markerId, const QColor &color)
     }
 }
 
-// 设置标记半径
+// 设置标记半径（绝对值）
 void vtkPlotBase::setMarkerRadius(const QString &markerId, double radius)
 {
     if (!m_markers.contains(markerId)) return;
 
     MarkerData &marker = m_markers[markerId];
     marker.radius = radius;
+    marker.relativeRadius = 0.0;  // 清除相对半径
+    marker.screenSize = 0.0;      // 清除屏幕大小
+    marker.sizeMode = MarkerSizeMode::Absolute;  // 切换到绝对半径模式
 
     // 使用新半径重新创建圆盘源
     vtkSmartPointer<vtkDiskSource> diskSource = vtkSmartPointer<vtkDiskSource>::New();
@@ -1085,6 +1167,34 @@ void vtkPlotBase::setMarkerRadius(const QString &markerId, double radius)
 
     marker.polyData = diskSource->GetOutput();
     marker.mapper->SetInputConnection(diskSource->GetOutputPort());
+    render();
+}
+
+// 设置标记相对半径（占X轴范围的比例，如0.02表示2%）
+void vtkPlotBase::setMarkerRelativeRadius(const QString &markerId, double ratio)
+{
+    if (!m_markers.contains(markerId) || ratio < 0) return;
+
+    MarkerData &marker = m_markers[markerId];
+    marker.relativeRadius = ratio;
+    marker.sizeMode = MarkerSizeMode::Relative;  // 切换到相对半径模式
+
+    // 根据相对半径更新实际大小
+    updateMarkerScale(marker);
+    render();
+}
+
+// 设置标记屏幕大小（像素）
+void vtkPlotBase::setMarkerScreenSize(const QString &markerId, double screenSize)
+{
+    if (!m_markers.contains(markerId) || screenSize <= 0) return;
+
+    MarkerData &marker = m_markers[markerId];
+    marker.screenSize = screenSize;
+    marker.sizeMode = MarkerSizeMode::Screen;  // 切换到屏幕大小模式
+
+    // 更新屏幕大小
+    updateScreenMarkerScale(marker);
     render();
 }
 
@@ -1138,21 +1248,24 @@ QStringList vtkPlotBase::getMarkerIds() const
 
 // ==================== 填充圆标记操作 ====================
 
-// 添加填充圆标记
-QString vtkPlotBase::addFilledMarker(const QVector3D &position, const QColor &color, double radius)
+// 添加填充圆标记（屏幕固定大小）
+QString vtkPlotBase::addFilledMarker(const QVector3D &position, const QColor &color, double screenSize)
 {
     QString id = generateId();
     MarkerData marker;
     marker.id = id;
     marker.filled = true;
     marker.visible = true;
-    marker.radius = radius;
+    marker.radius = 1.0;             // 初始半径，后续动态调整
     marker.lineWidth = 1.0;
+    marker.relativeRadius = 0.0;    // 不使用相对半径模式
+    marker.screenSize = screenSize;
+    marker.sizeMode = MarkerSizeMode::Screen;  // 屏幕固定大小模式
 
-    // 创建正多边形源（填充圆）
+    // 创建正多边形源（填充圆），使用单位半径
     vtkSmartPointer<vtkRegularPolygonSource> polygonSource = vtkSmartPointer<vtkRegularPolygonSource>::New();
     polygonSource->SetNumberOfSides(64);
-    polygonSource->SetRadius(radius);
+    polygonSource->SetRadius(1.0);
     polygonSource->SetCenter(0, 0, 0);
     polygonSource->Update();
 
@@ -1171,6 +1284,10 @@ QString vtkPlotBase::addFilledMarker(const QVector3D &position, const QColor &co
 
     m_renderer->AddActor(marker.follower);
     m_markers[id] = marker;
+
+    // 初始更新屏幕大小
+    updateScreenMarkerScale(m_markers[id]);
+
     autoScaleIfNeeded();
     updateLegend();
 
@@ -1178,9 +1295,61 @@ QString vtkPlotBase::addFilledMarker(const QVector3D &position, const QColor &co
 }
 
 // 添加填充圆标记（自动颜色）
-QString vtkPlotBase::addFilledMarker(const QVector3D &position, double radius)
+QString vtkPlotBase::addFilledMarker(const QVector3D &position)
 {
-    return addFilledMarker(position, getNextAutoColor(), radius);
+    return addFilledMarker(position, getNextAutoColor(), 10.0);
+}
+
+// 添加屏幕固定大小填充圆标记
+QString vtkPlotBase::addScreenFilledMarker(const QVector3D &position, const QColor &color, double screenSize)
+{
+    QString id = generateId();
+    MarkerData marker;
+    marker.id = id;
+    marker.filled = true;
+    marker.visible = true;
+    marker.radius = 1.0;            // 初始半径，后续动态调整
+    marker.lineWidth = 1.0;
+    marker.relativeRadius = 0.0;   // 不使用相对半径模式
+    marker.screenSize = screenSize;
+    marker.sizeMode = MarkerSizeMode::Screen;  // 屏幕固定大小模式
+
+    // 创建正多边形源（填充圆），使用单位半径
+    vtkSmartPointer<vtkRegularPolygonSource> polygonSource = vtkSmartPointer<vtkRegularPolygonSource>::New();
+    polygonSource->SetNumberOfSides(64);
+    polygonSource->SetRadius(1.0);
+    polygonSource->SetCenter(0, 0, 0);
+    polygonSource->Update();
+
+    marker.polyData = polygonSource->GetOutput();
+
+    // 创建映射器
+    marker.mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    marker.mapper->SetInputConnection(polygonSource->GetOutputPort());
+
+    // 创建跟随者（始终面向相机）
+    marker.follower = vtkSmartPointer<vtkFollower>::New();
+    marker.follower->SetMapper(marker.mapper);
+    marker.follower->SetPosition(position.x(), position.y(), position.z());
+    marker.follower->SetCamera(m_renderer->GetActiveCamera());
+    marker.follower->GetProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
+
+    m_renderer->AddActor(marker.follower);
+    m_markers[id] = marker;
+
+    // 初始更新屏幕大小
+    updateScreenMarkerScale(m_markers[id]);
+
+    autoScaleIfNeeded();
+    updateLegend();
+
+    return id;
+}
+
+// 添加屏幕固定大小填充圆标记（自动颜色）
+QString vtkPlotBase::addScreenFilledMarker(const QVector3D &position)
+{
+    return addScreenFilledMarker(position, getNextAutoColor(), 10.0);
 }
 
 // 设置填充标记可见性（委托给通用标记函数）
@@ -1195,7 +1364,7 @@ void vtkPlotBase::setFilledMarkerColor(const QString &markerId, const QColor &co
     setMarkerColor(markerId, color);
 }
 
-// 设置填充标记半径
+// 设置填充标记半径（绝对值）
 void vtkPlotBase::setFilledMarkerRadius(const QString &markerId, double radius)
 {
     if (!m_markers.contains(markerId)) return;
@@ -1204,6 +1373,9 @@ void vtkPlotBase::setFilledMarkerRadius(const QString &markerId, double radius)
     if (!marker.filled) return;  // 仅用于填充标记
 
     marker.radius = radius;
+    marker.relativeRadius = 0.0;  // 清除相对半径
+    marker.screenSize = 0.0;      // 清除屏幕大小
+    marker.sizeMode = MarkerSizeMode::Absolute;  // 切换到绝对半径模式
 
     // 使用新半径重新创建多边形源
     vtkSmartPointer<vtkRegularPolygonSource> polygonSource = vtkSmartPointer<vtkRegularPolygonSource>::New();
@@ -1214,6 +1386,38 @@ void vtkPlotBase::setFilledMarkerRadius(const QString &markerId, double radius)
 
     marker.polyData = polygonSource->GetOutput();
     marker.mapper->SetInputConnection(polygonSource->GetOutputPort());
+    render();
+}
+
+// 设置填充标记相对半径（占X轴范围的比例，如0.02表示2%）
+void vtkPlotBase::setFilledMarkerRelativeRadius(const QString &markerId, double ratio)
+{
+    if (!m_markers.contains(markerId) || ratio < 0) return;
+
+    MarkerData &marker = m_markers[markerId];
+    if (!marker.filled) return;  // 仅用于填充标记
+
+    marker.relativeRadius = ratio;
+    marker.sizeMode = MarkerSizeMode::Relative;  // 切换到相对半径模式
+
+    // 根据相对半径更新实际大小
+    updateMarkerScale(marker);
+    render();
+}
+
+// 设置填充标记屏幕大小（像素）
+void vtkPlotBase::setFilledMarkerScreenSize(const QString &markerId, double screenSize)
+{
+    if (!m_markers.contains(markerId) || screenSize <= 0) return;
+
+    MarkerData &marker = m_markers[markerId];
+    if (!marker.filled) return;  // 仅用于填充标记
+
+    marker.screenSize = screenSize;
+    marker.sizeMode = MarkerSizeMode::Screen;  // 切换到屏幕大小模式
+
+    // 更新屏幕大小
+    updateScreenMarkerScale(marker);
     render();
 }
 
@@ -1819,7 +2023,7 @@ void vtkPlotBase::setHeatmapContourCount(const QString &surfaceId, int count)
 {
     if (!m_heatmapSurfaces.contains(surfaceId)) return;
     if (count < 1) return;
-    
+
     HeatmapSurfaceData &surface = m_heatmapSurfaces[surfaceId];
     surface.contourCount = count;
     
@@ -1831,3 +2035,137 @@ void vtkPlotBase::setHeatmapContourCount(const QString &surfaceId, int count)
     render();
 }
 
+// 更新所有标记点的缩放（基于相对半径）
+void vtkPlotBase::updateAllMarkerScales()
+{
+    // 遍历所有标记点，更新相对半径模式的标记
+    for (auto it = m_markers.begin(); it != m_markers.end(); ++it) {
+        if (it->sizeMode == MarkerSizeMode::Relative) {
+            updateMarkerScale(it.value());
+        }
+    }
+}
+
+// 更新单个标记点的缩放
+void vtkPlotBase::updateMarkerScale(MarkerData &marker)
+{
+    if (marker.sizeMode != MarkerSizeMode::Relative) return;  // 仅处理相对半径模式
+
+    // 计算基于X轴范围的相对半径
+    double xRange = m_xMax - m_xMin;
+    if (xRange < 1e-10) xRange = 1.0;  // 防止除零
+
+    double actualRadius = xRange * marker.relativeRadius;
+
+    // 根据标记类型重新创建几何
+    if (marker.filled) {
+        // 填充圆：使用正多边形源
+        vtkSmartPointer<vtkRegularPolygonSource> polygonSource = vtkSmartPointer<vtkRegularPolygonSource>::New();
+        polygonSource->SetNumberOfSides(64);
+        polygonSource->SetRadius(actualRadius);
+        polygonSource->SetCenter(0, 0, 0);
+        polygonSource->Update();
+
+        marker.polyData = polygonSource->GetOutput();
+        marker.mapper->SetInputConnection(polygonSource->GetOutputPort());
+    } else {
+        // 空心环：使用圆盘源
+        vtkSmartPointer<vtkDiskSource> diskSource = vtkSmartPointer<vtkDiskSource>::New();
+        diskSource->SetInnerRadius(actualRadius * 0.6);
+        diskSource->SetOuterRadius(actualRadius);
+        diskSource->SetCircumferentialResolution(64);
+        diskSource->Update();
+
+        marker.polyData = diskSource->GetOutput();
+        marker.mapper->SetInputConnection(diskSource->GetOutputPort());
+    }
+
+    // 更新存储的半径值（便于查询）
+    marker.radius = actualRadius;
+}
+
+// 更新所有屏幕固定大小标记点的缩放
+void vtkPlotBase::updateAllScreenMarkerScales()
+{
+    for (auto it = m_markers.begin(); it != m_markers.end(); ++it) {
+        if (it->sizeMode == MarkerSizeMode::Screen) {
+            updateScreenMarkerScale(it.value());
+        }
+    }
+}
+
+// 更新单个屏幕固定大小标记点的缩放
+void vtkPlotBase::updateScreenMarkerScale(MarkerData &marker)
+{
+    if (marker.sizeMode != MarkerSizeMode::Screen) return;
+
+    // 获取渲染窗口尺寸
+    int* windowSize = m_renderer->GetRenderWindow()->GetSize();
+    int winWidth = 800;   // 默认宽度
+    int winHeight = 600;  // 默认高度
+
+    if (windowSize && windowSize[0] > 0 && windowSize[1] > 0) {
+        winWidth = windowSize[0];
+        winHeight = windowSize[1];
+    }
+
+    // 获取标记点在屏幕上的投影位置
+    double pos[3];
+    marker.follower->GetPosition(pos);
+
+    // 计算标记点到相机的距离
+    vtkCamera* camera = m_renderer->GetActiveCamera();
+    double cameraPos[3];
+    camera->GetPosition(cameraPos);
+    double dx = pos[0] - cameraPos[0];
+    double dy = pos[1] - cameraPos[1];
+    double dz = pos[2] - cameraPos[2];
+    double distance = sqrt(dx*dx + dy*dy + dz*dz);
+
+    if (distance < 1e-10) distance = 1.0;
+
+    // 计算相机视角
+    double angle = camera->GetViewAngle() * vtkMath::Pi() / 180.0;
+
+    // 计算屏幕每像素对应的世界坐标单位
+    // 公式：世界单位/像素 = 2 * distance * tan(angle/2) / windowHeight
+    double worldPerPixel = 2.0 * distance * tan(angle / 2.0) / winHeight;
+
+    // 计算所需的缩放比例
+    // 标记点半径（世界坐标）= 屏幕大小(像素) * worldPerPixel / 2
+    double targetRadius = marker.screenSize * worldPerPixel / 2.0;
+
+    // 计算缩放因子（基于单位半径 1.0）
+    double scale = targetRadius;
+
+    // 应用缩放
+    marker.follower->SetScale(scale, scale, scale);
+    marker.radius = scale;  // 更新存储的半径值
+}
+
+// 设置相机回调
+void vtkPlotBase::setupCameraCallback()
+{
+    if (m_cameraCallback) return;  // 已经设置过
+
+    m_cameraCallback = vtkSmartPointer<vtkCallbackCommand>::New();
+    m_cameraCallback->SetCallback(cameraCallback);
+    m_cameraCallback->SetClientData(this);  // 传递this指针
+
+    // 监听相机的 ModifiedEvent 事件
+    m_renderer->GetActiveCamera()->AddObserver(vtkCommand::ModifiedEvent, m_cameraCallback);
+}
+
+// 相机回调静态函数
+void vtkPlotBase::cameraCallback(vtkObject* caller, unsigned long eventId, void* clientData, void* callData)
+{
+    (void)caller;
+    (void)eventId;
+    (void)callData;
+
+    vtkPlotBase* self = static_cast<vtkPlotBase*>(clientData);
+    if (self) {
+        self->updateAllScreenMarkerScales();
+        self->render();
+    }
+}
