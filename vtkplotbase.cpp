@@ -1011,10 +1011,10 @@ vtkHeatmap* vtkPlotBase::addHeatmapSurface(const QVector<QVector3D> &points, int
 {
     vtkHeatmap *heatmap = new vtkHeatmap(points, nx, ny, colorBarTitle);
     heatmap->setScalarBarActor(m_scalarBarActor);  // m_scalarBarActor 是 vtkSmartPointer
-    heatmap->setContourBaseY(m_yMin);  // 投影到坐标系Y轴最小值
     heatmap->addToRenderer(m_renderer);
     m_heatmapSurfaces.append(heatmap);
     autoScaleIfNeeded();
+    heatmap->setContourBaseY(m_yMin);  // 投影到坐标系Y轴最小值（需在 autoScaleIfNeeded 后）
     updateScalarBar();
     return heatmap;
 }
