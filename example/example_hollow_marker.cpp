@@ -1,11 +1,11 @@
 /**
  * @file example_hollow_marker.cpp
- * @brief 空心标记示例 - 展示如何添加和自定义空心环标记
+ * @brief 空心环标记示例 - 展示如何添加和自定义空心环标记
  * 
  * 本示例演示：
  * 1. 添加空心环标记
- * 2. 设置标记颜色、线宽和半径
- * 3. 标记关键数据点
+ * 2. 设置标记颜色和大小
+ * 3. 屏幕固定大小模式
  */
 
 #include "vtkplotbase.h"
@@ -14,7 +14,6 @@
 #include <QVector>
 #include <QVector3D>
 #include <QColor>
-#include <cmath>
 
 // VTK module initialization
 #include <vtkAutoInit.h>
@@ -26,77 +25,30 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     
     vtkPlotBase w;
-    w.setWindowTitle("空心标记示例 - Hollow Markers");
+    w.setWindowTitle("空心环标记示例 - Hollow Markers");
     w.resize(800, 600);
     
     // 设置坐标轴标题
     w.setAxisTitles("X", "Y", "Z");
     
-    // ==================== 示例：在3D空间中标记关键点 ====================
+    // 添加多个空心环标记
+    // 默认：屏幕固定大小模式
     
-    // 标记原点（红色，大圆环）
-    QString originId = w.addHollowMarker(QVector3D(0, 0, 0));
-    w.setMarkerColor(originId, Qt::red);
-    w.setMarkerRadius(originId, 0.3);
-    w.setMarkerLineWidth(originId, 2.0);
-    w.setMarkerName(originId, "原点");
+    vtkMarker* marker1 = w.addHollowMarker(QVector3D(0, 0, 0), Qt::red, 15.0, 2.0);
+    marker1->setName("点1(红)");
     
-    // 标记X轴方向点（绿色）
-    QString xPosId = w.addHollowMarker(QVector3D(3, 0, 0));
-    w.setMarkerColor(xPosId, Qt::green);
-    w.setMarkerRadius(xPosId, 0.2);
-    w.setMarkerName(xPosId, "X+");
+    vtkMarker* marker2 = w.addHollowMarker(QVector3D(2, 2, 0), Qt::green, 12.0, 2.0);
+    marker2->setName("点2(绿)");
     
-    // 标记Y轴方向点（蓝色）
-    QString yPosId = w.addHollowMarker(QVector3D(0, 3, 0));
-    w.setMarkerColor(yPosId, Qt::blue);
-    w.setMarkerRadius(yPosId, 0.2);
-    w.setMarkerName(yPosId, "Y+");
+    vtkMarker* marker3 = w.addHollowMarker(QVector3D(-2, 1, 0), Qt::blue, 10.0, 2.0);
+    marker3->setName("点3(蓝)");
     
-    // 标记Z轴方向点（黄色）
-    QString zPosId = w.addHollowMarker(QVector3D(0, 0, 3));
-    w.setMarkerColor(zPosId, Qt::yellow);
-    w.setMarkerRadius(zPosId, 0.2);
-    w.setMarkerName(zPosId, "Z+");
+    vtkMarker* marker4 = w.addHollowMarker(QVector3D(1, -2, 0), Qt::yellow, 8.0, 2.0);
+    marker4->setName("点4(黄)");
     
-    // ==================== 示例：标记立方体顶点 ====================
-    double size = 2.0;
-    QVector<QVector3D> cubeVertices = {
-        QVector3D(-size, -size, -size),
-        QVector3D( size, -size, -size),
-        QVector3D(-size,  size, -size),
-        QVector3D( size,  size, -size),
-        QVector3D(-size, -size,  size),
-        QVector3D( size, -size,  size),
-        QVector3D(-size,  size,  size),
-        QVector3D( size,  size,  size)
-    };
-    
-    for (int i = 0; i < cubeVertices.size(); ++i) {
-        QString id = w.addHollowMarker(cubeVertices[i]);
-        w.setMarkerColor(id, Qt::cyan);
-        w.setMarkerRadius(id, 0.15);
-        w.setMarkerLineWidth(id, 1.5);
-    }
-    
-    // ==================== 示例：标记螺旋线上的点 ====================
-    QString prevId;
-    for (int i = 0; i <= 360; i += 45) {
-        double t = i * M_PI / 180.0;
-        double x = 2 * cos(t);
-        double y = i / 60.0;
-        double z = 2 * sin(t);
-        
-        QString id = w.addHollowMarker(QVector3D(x, y, z));
-        w.setMarkerColor(id, QColor::fromHsv(i, 255, 255));
-        w.setMarkerRadius(id, 0.1);
-        
-        // 连接相邻点形成曲线
-        if (!prevId.isEmpty()) {
-            // 可以在这里添加曲线连接
-        }
-        prevId = id;
-    }
+    // 使用自动颜色
+    vtkMarker* marker5 = w.addHollowMarker(QVector3D(-1, -1, 0));
+    marker5->setName("点5(自动)");
     
     // 显示图例
     w.setLegendVisible(true);

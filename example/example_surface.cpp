@@ -3,9 +3,9 @@
  * @brief 曲面示例 - 展示如何添加和自定义3D曲面
  * 
  * 本示例演示：
- * 1. 添加单色曲面
+ * 1. 添加多个3D曲面
  * 2. 设置曲面颜色和不透明度
- * 3. 常见数学曲面的可视化
+ * 3. 设置曲面可见性
  */
 
 #include "vtkplotbase.h"
@@ -32,8 +32,7 @@ int main(int argc, char *argv[])
     // 设置坐标轴标题
     w.setAxisTitles("X", "Y", "Z");
     
-    // ==================== 示例1：抛物面 ====================
-    // z = x^2 + y^2
+    // ==================== 示例1：抛物面 z = x^2 + y^2 ====================
     const int nx1 = 30;
     const int ny1 = 30;
     QVector<QVector3D> paraboloidPoints;
@@ -42,61 +41,47 @@ int main(int argc, char *argv[])
         for (int i = 0; i < nx1; ++i) {
             double x = (i - nx1/2.0) * 0.2;
             double z = (j - ny1/2.0) * 0.2;
-            double y = x * x + z * z;  // 抛物面方程
-            paraboloidPoints.append(QVector3D(x - 3, y, z + 3));
+            double y = x * x + z * z;
+            paraboloidPoints.append(QVector3D(x - 3, y, z));
         }
     }
     
-    QString paraboloidId = w.addSurface(paraboloidPoints, nx1, ny1, Qt::cyan, 0.8);
-    w.setSurfaceName(paraboloidId, "抛物面");
+    vtkSurface* paraboloid = w.addSurface(paraboloidPoints, nx1, ny1, Qt::cyan, 0.8);
+    paraboloid->setName("抛物面");
     
-    // ==================== 示例2：双曲面 ====================
-    // z = x^2 - y^2 (马鞍面)
-    QVector<QVector3D> saddlePoints;
-    
-    for (int j = 0; j < ny1; ++j) {
-        for (int i = 0; i < nx1; ++i) {
-            double x = (i - nx1/2.0) * 0.2;
-            double z = (j - ny1/2.0) * 0.2;
-            double y = x * x - z * z;  // 马鞍面方程
-            saddlePoints.append(QVector3D(x + 3, y, z + 3));
-        }
-    }
-    
-    QString saddleId = w.addSurface(saddlePoints, nx1, ny1, Qt::yellow, 0.8);
-    w.setSurfaceName(saddleId, "马鞍面");
-    
-    // ==================== 示例3：正弦波曲面 ====================
-    const int nx2 = 50;
-    const int ny2 = 50;
-    QVector<QVector3D> wavePoints;
+    // ==================== 示例2：平面 z = 0 ====================
+    const int nx2 = 20;
+    const int ny2 = 20;
+    QVector<QVector3D> planePoints;
     
     for (int j = 0; j < ny2; ++j) {
         for (int i = 0; i < nx2; ++i) {
-            double x = (i - nx2/2.0) * 0.15;
-            double z = (j - ny2/2.0) * 0.15;
-            double y = sin(sqrt(x*x + z*z) * 2) * 0.5;  // 波浪曲面
-            wavePoints.append(QVector3D(x, y - 2, z - 3));
+            double x = (i - nx2/2.0) * 0.3;
+            double z = (j - ny2/2.0) * 0.3;
+            double y = -2;  // 固定高度
+            planePoints.append(QVector3D(x - 3, y, z + 5));
         }
     }
     
-    QString waveId = w.addSurface(wavePoints, nx2, ny2, Qt::magenta, 0.7);
-    w.setSurfaceName(waveId, "波浪面");
+    vtkSurface* plane = w.addSurface(planePoints, nx2, ny2, Qt::gray, 0.6);
+    plane->setName("平面");
     
-    // ==================== 示例4：平面 ====================
-    QVector<QVector3D> planePoints;
+    // ==================== 示例3：波浪面 ====================
+    const int nx3 = 40;
+    const int nz3 = 40;
+    QVector<QVector3D> wavePoints;
     
-    for (int j = 0; j < 10; ++j) {
-        for (int i = 0; i < 10; ++i) {
-            double x = i * 0.5 - 2.5;
-            double z = j * 0.5 - 2.5;
-            double y = 0.5 * x + 0.3 * z;  // 倾斜平面
-            planePoints.append(QVector3D(x - 3, y - 2, z - 3));
+    for (int j = 0; j < nz3; ++j) {
+        for (int i = 0; i < nx3; ++i) {
+            double x = (i - nx3/2.0) * 0.15;
+            double z = (j - nz3/2.0) * 0.15;
+            double y = sin(sqrt(x*x + z*z) * 2) * 0.5;
+            wavePoints.append(QVector3D(x + 5, y, z));
         }
     }
     
-    QString planeId = w.addSurface(planePoints, 10, 10, Qt::green, 0.6);
-    w.setSurfaceName(planeId, "斜平面");
+    vtkSurface* wave = w.addSurface(wavePoints, nx3, nz3, Qt::magenta, 0.7);
+    wave->setName("波浪面");
     
     // 显示图例
     w.setLegendVisible(true);

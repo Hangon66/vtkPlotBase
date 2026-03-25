@@ -33,10 +33,19 @@ LIBS += -lvtksys-9.6
 
 SOURCES += \
     main.cpp \
-    vtkplotbase.cpp
+    vtkplotbase.cpp \
+    drawable/vtkcurve.cpp \
+    drawable/vtkmarker.cpp \
+    drawable/vtksurface.cpp \
+    drawable/vtkheatmap.cpp
 
 HEADERS += \
-    vtkplotbase.h
+    vtkplotbase.h \
+    drawable/vtkdrawable.h \
+    drawable/vtkcurve.h \
+    drawable/vtkmarker.h \
+    drawable/vtksurface.h \
+    drawable/vtkheatmap.h
 
 FORMS += \
     vtkplotbase.ui

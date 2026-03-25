@@ -41,10 +41,8 @@ int main(int argc, char *argv[])
         double z = sin(t);
         helixPoints.append(QVector3D(x, y, z));
     }
-    QString helixId = w.addCurve(helixPoints);
-    w.setCurveColor(helixId, Qt::red);
-    w.setCurveWidth(helixId, 2.0);
-    w.setCurveName(helixId, "螺旋线");
+    vtkCurve* helix = w.addCurve(helixPoints, Qt::red, 2.0);
+    helix->setName("螺旋线");
     
     // ==================== 示例2：正弦曲线 ====================
     QVector<QVector3D> sinePoints;
@@ -54,10 +52,8 @@ int main(int argc, char *argv[])
         double z = 0;  // 在XY平面
         sinePoints.append(QVector3D(x, y, z));
     }
-    QString sineId = w.addCurve(sinePoints);
-    w.setCurveColor(sineId, Qt::cyan);
-    w.setCurveWidth(sineId, 2.0);
-    w.setCurveName(sineId, "正弦曲线");
+    vtkCurve* sine = w.addCurve(sinePoints, Qt::cyan, 2.0);
+    sine->setName("正弦曲线");
     
     // ==================== 示例3：余弦曲线（Z方向偏移） ====================
     QVector<QVector3D> cosinePoints;
@@ -67,10 +63,8 @@ int main(int argc, char *argv[])
         double z = 2;  // Z方向偏移
         cosinePoints.append(QVector3D(x, y, z));
     }
-    QString cosineId = w.addCurve(cosinePoints);
-    w.setCurveColor(cosineId, Qt::yellow);
-    w.setCurveWidth(cosineId, 2.0);
-    w.setCurveName(cosineId, "余弦曲线");
+    vtkCurve* cosine = w.addCurve(cosinePoints, Qt::yellow, 2.0);
+    cosine->setName("余弦曲线");
     
     // ==================== 示例4：抛物线 ====================
     QVector<QVector3D> parabolaPoints;
@@ -80,10 +74,8 @@ int main(int argc, char *argv[])
         double z = -2;  // Z方向偏移
         parabolaPoints.append(QVector3D(x, y, z));
     }
-    QString parabolaId = w.addCurve(parabolaPoints);
-    w.setCurveColor(parabolaId, Qt::green);
-    w.setCurveWidth(parabolaId, 2.0);
-    w.setCurveName(parabolaId, "抛物线");
+    vtkCurve* parabola = w.addCurve(parabolaPoints, Qt::green, 2.0);
+    parabola->setName("抛物线");
     
     // 显示图例
     w.setLegendVisible(true);

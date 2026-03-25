@@ -1,11 +1,11 @@
 /**
  * @file example_filled_marker.cpp
- * @brief 填充标记示例 - 展示如何添加和自定义填充圆标记
+ * @brief 填充圆标记示例 - 展示如何添加和自定义填充圆标记
  * 
  * 本示例演示：
  * 1. 添加填充圆标记
- * 2. 设置标记颜色和半径
- * 3. 用标记表示数据点密度
+ * 2. 设置标记颜色和大小
+ * 3. 屏幕固定大小模式
  */
 
 #include "vtkplotbase.h"
@@ -14,7 +14,6 @@
 #include <QVector>
 #include <QVector3D>
 #include <QColor>
-#include <cmath>
 
 // VTK module initialization
 #include <vtkAutoInit.h>
@@ -26,80 +25,30 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     
     vtkPlotBase w;
-    w.setWindowTitle("填充标记示例 - Filled Markers");
+    w.setWindowTitle("填充圆标记示例 - Filled Markers");
     w.resize(800, 600);
     
     // 设置坐标轴标题
     w.setAxisTitles("X", "Y", "Z");
     
-    // ==================== 示例1：坐标轴方向标记 ====================
+    // 添加多个填充圆标记
+    // 默认：屏幕固定大小模式
     
-    // 原点（白色大圆）
-    QString originId = w.addFilledMarker(QVector3D(0, 0, 0));
-    w.setFilledMarkerColor(originId, Qt::white);
-    w.setFilledMarkerRadius(originId, 0.25);
+    vtkMarker* marker1 = w.addFilledMarker(QVector3D(0, 0, 0), Qt::red, 15.0);
+    marker1->setName("点1(红)");
     
-    // X轴正方向（红色）
-    QString xPosId = w.addFilledMarker(QVector3D(4, 0, 0));
-    w.setFilledMarkerColor(xPosId, Qt::red);
-    w.setFilledMarkerRadius(xPosId, 0.2);
+    vtkMarker* marker2 = w.addFilledMarker(QVector3D(2, 2, 0), Qt::green, 12.0);
+    marker2->setName("点2(绿)");
     
-    // Y轴正方向（绿色）
-    QString yPosId = w.addFilledMarker(QVector3D(0, 4, 0));
-    w.setFilledMarkerColor(yPosId, Qt::green);
-    w.setFilledMarkerRadius(yPosId, 0.2);
+    vtkMarker* marker3 = w.addFilledMarker(QVector3D(-2, 1, 0), Qt::blue, 10.0);
+    marker3->setName("点3(蓝)");
     
-    // Z轴正方向（蓝色）
-    QString zPosId = w.addFilledMarker(QVector3D(0, 0, 4));
-    w.setFilledMarkerColor(zPosId, Qt::blue);
-    w.setFilledMarkerRadius(zPosId, 0.2);
+    vtkMarker* marker4 = w.addFilledMarker(QVector3D(1, -2, 0), Qt::yellow, 8.0);
+    marker4->setName("点4(黄)");
     
-    // ==================== 示例2：随机散点分布 ====================
-    // 模拟3D数据点分布
-    for (int i = 0; i < 50; ++i) {
-        double x = (rand() % 100 - 50) / 10.0;
-        double y = (rand() % 100 - 50) / 10.0;
-        double z = (rand() % 100 - 50) / 10.0;
-        
-        QString id = w.addFilledMarker(QVector3D(x, y, z));
-        
-        // 根据高度设置颜色
-        QColor color = QColor::fromHsv(static_cast<int>((y + 5) * 25), 255, 255);
-        w.setFilledMarkerColor(id, color);
-        w.setFilledMarkerRadius(id, 0.1);
-    }
-    
-    // ==================== 示例3：球面上的点 ====================
-    double radius = 3.0;
-    for (int phi = 0; phi < 360; phi += 30) {
-        for (int theta = -90; theta <= 90; theta += 30) {
-            double phiRad = phi * M_PI / 180.0;
-            double thetaRad = theta * M_PI / 180.0;
-            
-            double x = radius * cos(thetaRad) * cos(phiRad);
-            double y = radius * sin(thetaRad);
-            double z = radius * cos(thetaRad) * sin(phiRad);
-            
-            QString id = w.addFilledMarker(QVector3D(x, y, z));
-            
-            // 根据纬度设置颜色
-            QColor color = QColor::fromHsv((theta + 90) * 2, 255, 255);
-            w.setFilledMarkerColor(id, color);
-            w.setFilledMarkerRadius(id, 0.08);
-        }
-    }
-    
-    // ==================== 示例4：大小变化的点 ====================
-    // 演示用半径表示数据大小
-    for (int i = 0; i < 10; ++i) {
-        double x = i - 4.5;
-        double y = 0;
-        double z = -3;
-        
-        QString id = w.addFilledMarker(QVector3D(x, y, z));
-        w.setFilledMarkerColor(id, Qt::magenta);
-        w.setFilledMarkerRadius(id, 0.05 + i * 0.03);  // 半径递增
-    }
+    // 使用自动颜色
+    vtkMarker* marker5 = w.addFilledMarker(QVector3D(-1, -1, 0));
+    marker5->setName("点5(自动)");
     
     // 显示图例
     w.setLegendVisible(true);

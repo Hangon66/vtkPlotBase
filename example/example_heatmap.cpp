@@ -50,10 +50,10 @@ int main(int argc, char *argv[])
     }
     
     // 添加热力图曲面，Y值（高度）映射为颜色
-    QString sincId = w.addHeatmapSurface(sincPoints, nx, nz, "Sinc(r)");
+    vtkHeatmap* sinc = w.addHeatmapSurface(sincPoints, nx, nz, "Sinc(r)");
     
     // 设置等高线数量
-    w.setHeatmapContourCount(sincId, 8);
+    sinc->setContourCount(8);
     
     // ==================== 示例2：Peaks函数曲面（注释状态，可取消注释测试） ====================
     // MATLAB经典的peaks函数
@@ -76,8 +76,8 @@ int main(int argc, char *argv[])
         }
     }
     
-    QString peaksId = w.addHeatmapSurface(peaksPoints, nx2, nz2, "Peaks");
-    w.setHeatmapContourCount(peaksId, 10);
+    vtkHeatmap* peaks = w.addHeatmapSurface(peaksPoints, nx2, nz2, "Peaks");
+    peaks->setContourCount(10);
     */
     
     // ==================== 示例3：高斯分布曲面（注释状态） ====================
@@ -102,18 +102,18 @@ int main(int argc, char *argv[])
         }
     }
     
-    QString gaussId = w.addHeatmapSurface(gaussPoints, nx3, nz3, "Gaussian");
-    w.setHeatmapContourCount(gaussId, 6);
+    vtkHeatmap* gauss = w.addHeatmapSurface(gaussPoints, nx3, nz3, "Gaussian");
+    gauss->setContourCount(6);
     */
     
     // ==================== 控制等高线可见性 ====================
-    // w.setHeatmapContourVisible(sincId, false);  // 隐藏等高线
+    // sinc->setContourVisible(false);  // 隐藏等高线
     
     // ==================== 控制颜色条可见性 ====================
     // w.setHeatmapColorBarVisible(false);  // 隐藏颜色条
     
     // ==================== 设置曲面不透明度 ====================
-    // w.setHeatmapSurfaceOpacity(sincId, 0.7);
+    // sinc->setOpacity(0.7);
     
     w.show();
     return a.exec();
