@@ -102,6 +102,15 @@ vtkPlotBase::~vtkPlotBase()
 void vtkPlotBase::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
+    
+    // 首次显示时，根据实际数据重置相机
+    static bool firstShow = true;
+    if (firstShow) {
+        firstShow = false;
+        m_renderer->ResetCamera();
+        saveDefaultCamera();
+    }
+    
     updateAllScreenMarkerScales();
     render();
 }
