@@ -8,7 +8,7 @@
  * 3. 常见数学曲面的可视化
  */
 
-#include "../vtkplotbase.h"
+#include "vtkplotbase.h"
 
 #include <QApplication>
 #include <QVector>

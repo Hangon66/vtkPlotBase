@@ -8,7 +8,7 @@
  * 3. 标记关键数据点
  */
 
-#include "../vtkplotbase.h"
+#include "vtkplotbase.h"
 
 #include <QApplication>
 #include <QVector>
@@ -36,27 +36,27 @@ int main(int argc, char *argv[])
     
     // 标记原点（红色，大圆环）
     QString originId = w.addHollowMarker(QVector3D(0, 0, 0));
-    w.setHollowMarkerColor(originId, Qt::red);
-    w.setHollowMarkerRadius(originId, 0.3);
-    w.setHollowMarkerWidth(originId, 2.0);
+    w.setMarkerColor(originId, Qt::red);
+    w.setMarkerRadius(originId, 0.3);
+    w.setMarkerLineWidth(originId, 2.0);
     w.setMarkerName(originId, "原点");
     
     // 标记X轴方向点（绿色）
     QString xPosId = w.addHollowMarker(QVector3D(3, 0, 0));
-    w.setHollowMarkerColor(xPosId, Qt::green);
-    w.setHollowMarkerRadius(xPosId, 0.2);
+    w.setMarkerColor(xPosId, Qt::green);
+    w.setMarkerRadius(xPosId, 0.2);
     w.setMarkerName(xPosId, "X+");
     
     // 标记Y轴方向点（蓝色）
     QString yPosId = w.addHollowMarker(QVector3D(0, 3, 0));
-    w.setHollowMarkerColor(yPosId, Qt::blue);
-    w.setHollowMarkerRadius(yPosId, 0.2);
+    w.setMarkerColor(yPosId, Qt::blue);
+    w.setMarkerRadius(yPosId, 0.2);
     w.setMarkerName(yPosId, "Y+");
     
     // 标记Z轴方向点（黄色）
     QString zPosId = w.addHollowMarker(QVector3D(0, 0, 3));
-    w.setHollowMarkerColor(zPosId, Qt::yellow);
-    w.setHollowMarkerRadius(zPosId, 0.2);
+    w.setMarkerColor(zPosId, Qt::yellow);
+    w.setMarkerRadius(zPosId, 0.2);
     w.setMarkerName(zPosId, "Z+");
     
     // ==================== 示例：标记立方体顶点 ====================
@@ -74,9 +74,9 @@ int main(int argc, char *argv[])
     
     for (int i = 0; i < cubeVertices.size(); ++i) {
         QString id = w.addHollowMarker(cubeVertices[i]);
-        w.setHollowMarkerColor(id, Qt::cyan);
-        w.setHollowMarkerRadius(id, 0.15);
-        w.setHollowMarkerWidth(id, 1.5);
+        w.setMarkerColor(id, Qt::cyan);
+        w.setMarkerRadius(id, 0.15);
+        w.setMarkerLineWidth(id, 1.5);
     }
     
     // ==================== 示例：标记螺旋线上的点 ====================
@@ -88,8 +88,8 @@ int main(int argc, char *argv[])
         double z = 2 * sin(t);
         
         QString id = w.addHollowMarker(QVector3D(x, y, z));
-        w.setHollowMarkerColor(id, QColor::fromHsv(i, 255, 255));
-        w.setHollowMarkerRadius(id, 0.1);
+        w.setMarkerColor(id, QColor::fromHsv(i, 255, 255));
+        w.setMarkerRadius(id, 0.1);
         
         // 连接相邻点形成曲线
         if (!prevId.isEmpty()) {

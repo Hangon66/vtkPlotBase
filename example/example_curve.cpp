@@ -8,7 +8,7 @@
  * 3. 设置曲线可见性
  */
 
-#include "../vtkplotbase.h"
+#include "vtkplotbase.h"
 
 #include <QApplication>
 #include <QVector>

@@ -176,7 +176,7 @@ public:
     QString addCurve(const QVector<QVector3D> &points, double lineWidth = 2.0);                          // 添加曲线（自动颜色）
     void setCurveVisible(const QString &curveId, bool visible);                                       // 设置曲线可见性
     void setCurveColor(const QString &curveId, const QColor &color);                                  // 设置曲线颜色
-    void setCurveLineWidth(const QString &curveId, double lineWidth);                                 // 设置曲线线宽
+    void setCurveWidth(const QString &curveId, double width);                                        // 设置曲线线宽
     void updateCurveData(const QString &curveId, const QVector<QVector3D> &points);                   // 更新曲线数据
     void removeCurve(const QString &curveId);                                                         // 移除曲线
     void clearAllCurves();                                                                            // 清除所有曲线
@@ -185,9 +185,9 @@ public:
     // ===== 空心环标记操作 =====
     QString addHollowMarker(const QVector3D &position,                                                // 添加空心环标记
                             const QColor &color,
-                            double radius = 0.03,
-                            double lineWidth = 1.0);
-    QString addHollowMarker(const QVector3D &position, double radius = 0.03, double lineWidth = 1.0);   // 添加空心环标记（自动颜色）
+                            double radius = 0.06,
+                            double lineWidth = 2.0);
+    QString addHollowMarker(const QVector3D &position, double radius = 0.06, double lineWidth = 2.0);   // 添加空心环标记（自动颜色）
     void setMarkerVisible(const QString &markerId, bool visible);                                     // 设置标记可见性
     void setMarkerColor(const QString &markerId, const QColor &color);                                // 设置标记颜色
     void setMarkerRadius(const QString &markerId, double radius);                                     // 设置标记半径
@@ -200,8 +200,8 @@ public:
     // ===== 填充圆标记操作 =====
     QString addFilledMarker(const QVector3D &position,                                                // 添加填充圆标记
                             const QColor &color,
-                            double radius = 0.03);
-    QString addFilledMarker(const QVector3D &position, double radius = 0.03);                           // 添加填充圆标记（自动颜色）
+                            double radius = 0.05);
+    QString addFilledMarker(const QVector3D &position, double radius = 0.05);                           // 添加填充圆标记（自动颜色）
     void setFilledMarkerVisible(const QString &markerId, bool visible);                               // 设置标记可见性
     void setFilledMarkerColor(const QString &markerId, const QColor &color);                          // 设置标记颜色
     void setFilledMarkerRadius(const QString &markerId, double radius);                               // 设置标记半径

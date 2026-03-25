@@ -221,11 +221,16 @@ void vtkPlotBase::createLegend()
     
     // 设置文本属性
     m_legendActor->GetEntryTextProperty()->SetColor(1, 1, 1);
-    m_legendActor->GetEntryTextProperty()->SetFontSize(8);
+    m_legendActor->GetEntryTextProperty()->SetFontSize(6);  // 缩小字号
+    
     
     m_legendActor->SetVisibility(m_legendVisible ? 1 : 0);
     
     m_renderer->AddActor(m_legendActor);
+    
+    // 打印初始Padding和Border值
+    qDebug() << "[DEBUG] createLegend - Initial Padding:" << m_legendActor->GetPadding()
+             << "Border:" << m_legendActor->GetBorder();
 }
 
 void vtkPlotBase::updateLegend()
@@ -261,12 +266,11 @@ void vtkPlotBase::updateLegend()
     
     int entry = 0;
     
-    // 创建曲线符号（线条）
-    // 符号范围：0-0.5，间距：0.5-1.0（右侧留50%空白）
+    // 创建曲线符号（线条）- 右侧添加空白点增加符号与文字间隔
     vtkSmartPointer<vtkPoints> linePts = vtkSmartPointer<vtkPoints>::New();
     linePts->InsertNextPoint(0, 0, 0);
-    linePts->InsertNextPoint(0.5, 0, 0);
-    linePts->InsertNextPoint(1.0, 0, 0);  // 右侧扩展点，用于创建间距
+    linePts->InsertNextPoint(2.0, 0, 0);  // 线条长度再次翻倍（从1.0到2.0）
+    linePts->InsertNextPoint(2.3, 0, 0);  // 右侧空白点，扩展符号边界框
     
     vtkSmartPointer<vtkPolyLine> lineCell = vtkSmartPointer<vtkPolyLine>::New();
     lineCell->GetPointIds()->SetNumberOfIds(2);
@@ -289,8 +293,7 @@ void vtkPlotBase::updateLegend()
         }
     }
     
-    // 创建标记符号
-    // 符号范围：0-0.5，间距：0.5-1.0（右侧留50%空白）
+    // 创建标记符号 - 右侧添加空白点增加符号与文字间隔
     
     // 填充圆符号（用于填充标记）
     vtkSmartPointer<vtkRegularPolygonSource> filledCircleSource = vtkSmartPointer<vtkRegularPolygonSource>::New();
@@ -299,10 +302,9 @@ void vtkPlotBase::updateLegend()
     filledCircleSource->SetCenter(0.25, 0, 0);
     filledCircleSource->Update();
     
-    // 添加右侧扩展点用于创建间距
     vtkSmartPointer<vtkPolyData> filledCircleSymbol = vtkSmartPointer<vtkPolyData>::New();
     filledCircleSymbol->DeepCopy(filledCircleSource->GetOutput());
-    filledCircleSymbol->GetPoints()->InsertNextPoint(1.0, 0, 0);
+    filledCircleSymbol->GetPoints()->InsertNextPoint(0.8, 0, 0);  // 右侧空白点
     
     // 空心环符号（用于空心标记）
     vtkSmartPointer<vtkDiskSource> hollowRingSource = vtkSmartPointer<vtkDiskSource>::New();
@@ -319,10 +321,9 @@ void vtkPlotBase::updateLegend()
     ringTransformFilter->SetTransform(ringTransform);
     ringTransformFilter->Update();
     
-    // 添加右侧扩展点用于创建间距
     vtkSmartPointer<vtkPolyData> hollowRingSymbol = vtkSmartPointer<vtkPolyData>::New();
     hollowRingSymbol->DeepCopy(ringTransformFilter->GetOutput());
-    hollowRingSymbol->GetPoints()->InsertNextPoint(1.0, 0, 0);
+    hollowRingSymbol->GetPoints()->InsertNextPoint(0.8, 0, 0);  // 右侧空白点
     
     // 将标记添加到图例
     for (auto it = m_markers.begin(); it != m_markers.end(); ++it) {
@@ -339,17 +340,16 @@ void vtkPlotBase::updateLegend()
         }
     }
     
-    // 创建曲面符号（填充方块）
+    // 创建曲面符号（填充方块）- 右侧添加空白点增加符号与文字间隔
     vtkSmartPointer<vtkRegularPolygonSource> squareSource = vtkSmartPointer<vtkRegularPolygonSource>::New();
     squareSource->SetNumberOfSides(4);  // 正方形
     squareSource->SetRadius(0.25);
     squareSource->SetCenter(0.25, 0, 0);
     squareSource->Update();
     
-    // 添加右侧扩展点用于创建间距
     vtkSmartPointer<vtkPolyData> squareSymbol = vtkSmartPointer<vtkPolyData>::New();
     squareSymbol->DeepCopy(squareSource->GetOutput());
-    squareSymbol->GetPoints()->InsertNextPoint(1.0, 0, 0);
+    squareSymbol->GetPoints()->InsertNextPoint(0.8, 0, 0);  // 右侧空白点
     
     // 将曲面添加到图例
     for (auto it = m_surfaces.begin(); it != m_surfaces.end(); ++it) {
@@ -360,17 +360,26 @@ void vtkPlotBase::updateLegend()
         }
     }
     
-    // 根据设置更新图例位置
-    updateLegendPosition();
-    
-    // 根据图例条目数量动态调整图例框大小
-    // 每个条目高度约0.035，最小宽度0.10，最大宽度0.18
-    double legendWidth = qBound(0.10, 0.12 + entryCount * 0.005, 0.18);
-    double legendHeight = qBound(0.04, 0.03 + entryCount * 0.035, 0.25);
+    // 动态调整图例框高度（宽度固定，高度随条目数量变化）
+    // 右边缘紧贴窗口右边缘，上边缘紧贴窗口上边缘
+    // 每个条目高度约0.035
+    double legendWidth = 0.12;
+    double legendHeight = qBound(0.04, 0.03 + entryCount * 0.035, 0.30);
     m_legendActor->GetPosition2Coordinate()->SetValue(legendWidth, legendHeight);
     
-    // 根据图例框高度重新调整位置（使顶部/底部对齐）
-    updateLegendPositionForSize(legendWidth, legendHeight);
+    // 计算位置：使右边缘在1.0，上边缘在1.0
+    // Position.x = 1.0 - legendWidth, Position.y = 1.0 - legendHeight
+    double posX = 1.0 - legendWidth;
+    double posY = 1.0 - legendHeight;
+    m_legendActor->GetPositionCoordinate()->SetValue(posX, posY);
+    
+    // 打印图例位置信息和当前Padding/Border值
+    qDebug() << "[DEBUG] updateLegend - entryCount:" << entryCount
+             << "legendWidth:" << legendWidth << "legendHeight:" << legendHeight
+             << "posX:" << posX << "posY:" << posY
+             << "Right edge:" << (posX + legendWidth) << "Top edge:" << (posY + legendHeight)
+             << "Padding:" << m_legendActor->GetPadding()
+             << "Border:" << m_legendActor->GetBorder();
     
     render();
 }
@@ -388,24 +397,41 @@ void vtkPlotBase::updateLegendPosition()
 // 根据图例框大小更新位置（使顶部/底部贴边）
 void vtkPlotBase::updateLegendPositionForSize(double legendWidth, double legendHeight)
 {
-    double margin = 0.02;  // 边距2%
+    double margin = 0.0;  // 边距0%，测试是否紧贴右边缘
+    
+    // 调试信息：输出图例位置和大小
+    qDebug() << "[DEBUG] updateLegendPositionForSize - legendWidth:" << legendWidth 
+             << "legendHeight:" << legendHeight << "margin:" << margin;
     
     switch (m_legendPosition) {
         case LegendPosition::TopLeft:
             // 左上角：X靠左，Y使顶部贴边
             m_legendActor->GetPositionCoordinate()->SetValue(margin, 1.0 - legendHeight - margin);
+            qDebug() << "[DEBUG] TopLeft - Position set to:" << margin << (1.0 - legendHeight - margin);
             break;
         case LegendPosition::TopRight:
             // 右上角：X使右侧贴边，Y使顶部贴边
-            m_legendActor->GetPositionCoordinate()->SetValue(1.0 - legendWidth - margin, 1.0 - legendHeight - margin);
+            {
+                double posX = 1.0 - legendWidth - margin;
+                double posY = 1.0 - legendHeight - margin;
+                m_legendActor->GetPositionCoordinate()->SetValue(posX, posY);
+                qDebug() << "[DEBUG] TopRight - Position set to:" << posX << posY
+                         << "Right edge at:" << (posX + legendWidth);
+            }
             break;
         case LegendPosition::BottomLeft:
             // 左下角：X靠左，Y靠底部
             m_legendActor->GetPositionCoordinate()->SetValue(margin, margin);
+            qDebug() << "[DEBUG] BottomLeft - Position set to:" << margin << margin;
             break;
         case LegendPosition::BottomRight:
             // 右下角：X使右侧贴边，Y靠底部
-            m_legendActor->GetPositionCoordinate()->SetValue(1.0 - legendWidth - margin, margin);
+            {
+                double posX = 1.0 - legendWidth - margin;
+                m_legendActor->GetPositionCoordinate()->SetValue(posX, margin);
+                qDebug() << "[DEBUG] BottomRight - Position set to:" << posX << margin
+                         << "Right edge at:" << (posX + legendWidth);
+            }
             break;
     }
 }
@@ -907,10 +933,10 @@ void vtkPlotBase::setCurveColor(const QString &curveId, const QColor &color)
 }
 
 // 设置曲线线宽
-void vtkPlotBase::setCurveLineWidth(const QString &curveId, double lineWidth)
+void vtkPlotBase::setCurveWidth(const QString &curveId, double width)
 {
     if (m_curves.contains(curveId)) {
-        m_curves[curveId].actor->GetProperty()->SetLineWidth(lineWidth);
+        m_curves[curveId].actor->GetProperty()->SetLineWidth(width);
         render();
     }
 }

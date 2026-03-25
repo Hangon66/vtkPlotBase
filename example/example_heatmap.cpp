@@ -9,7 +9,7 @@
  * 4. sinc函数和peaks函数可视化
  */
 
-#include "../vtkplotbase.h"
+#include "vtkplotbase.h"
 
 #include <QApplication>
 #include <QVector>

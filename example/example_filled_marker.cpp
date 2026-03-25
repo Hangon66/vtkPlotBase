@@ -8,7 +8,7 @@
  * 3. 用标记表示数据点密度
  */
 
-#include "../vtkplotbase.h"
+#include "vtkplotbase.h"
 
 #include <QApplication>
 #include <QVector>
