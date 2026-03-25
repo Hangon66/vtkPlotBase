@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
     vtkSurface* paraboloid = w.addSurface(paraboloidPoints, nx1, ny1);
     paraboloid->setName("444");
     
-    // ==================== 示例1：Sinc函数曲面 ====================
+    // ==================== Sinc函数曲面 ====================
     // sinc(r) = sin(r)/r，经典的信号处理函数
     const int nx = 60;
     const int nz = 60;

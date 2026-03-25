@@ -49,36 +49,118 @@ public:
      */
     ~vtkHeatmap() override;
     
-    // vtkDrawable 接口实现
+    /**
+     * @brief 获取唯一标识符
+     * @return QString 标识符
+     */
     QString id() const override { return m_id; }
+    /**
+     * @brief 获取名称
+     * @return QString 名称
+     */
     QString name() const override { return m_name; }
+    /**
+     * @brief 设置名称
+     * @param name 名称
+     */
     void setName(const QString &name) override { m_name = name; }
+    /**
+     * @brief 设置可见性
+     * @param visible 是否可见
+     */
     void setVisible(bool visible) override;
+    /**
+     * @brief 获取可见性
+     * @return bool 是否可见
+     */
     bool visible() const override { return m_visible; }
-    void setColor(const QColor &color) override;  // 注意：热力图颜色由标量值决定，此函数仅用于兼容
+    /**
+     * @brief 设置颜色（热力图颜色由标量值决定，此函数仅用于兼容）
+     * @param color 颜色
+     */
+    void setColor(const QColor &color) override;
+    /**
+     * @brief 获取颜色
+     * @return QColor 颜色
+     */
     QColor color() const override { return QColor(); }
+    /**
+     * @brief 添加到渲染器
+     * @param renderer 渲染器
+     */
     void addToRenderer(vtkRenderer *renderer) override;
+    /**
+     * @brief 从渲染器移除
+     * @param renderer 渲染器
+     */
     void removeFromRenderer(vtkRenderer *renderer) override;
+    /**
+     * @brief 渲染
+     */
     void render() override;
     
-    // 热力图特有方法
-    void setOpacity(double opacity);                   // 设置不透明度
-    double opacity() const { return m_opacity; }       // 获取不透明度
-    
-    void setContourVisible(bool visible);               // 设置等高线可见性
+    // ===== 热力图特有方法 =====
+    /**
+     * @brief 设置不透明度
+     * @param opacity 不透明度 [0.0, 1.0]
+     */
+    void setOpacity(double opacity);
+    /**
+     * @brief 获取不透明度
+     * @return double 不透明度
+     */
+    double opacity() const { return m_opacity; }
+    /**
+     * @brief 设置等高线可见性
+     * @param visible 是否可见
+     */
+    void setContourVisible(bool visible);
+    /**
+     * @brief 获取等高线可见性
+     * @return bool 是否可见
+     */
     bool isContourVisible() const { return m_contourVisible; }
-    
-    void setContourCount(int count);                   // 设置等高线数量
+    /**
+     * @brief 设置等高线数量
+     * @param count 等高线数量
+     */
+    void setContourCount(int count);
+    /**
+     * @brief 获取等高线数量
+     * @return int 等高线数量
+     */
     int contourCount() const { return m_contourCount; }
-    
-    void setContourBaseY(double y);                    // 设置等高线投影基准Y值
+    /**
+     * @brief 设置等高线投影基准Y值
+     * @param y Y坐标值
+     */
+    void setContourBaseY(double y);
+    /**
+     * @brief 获取等高线投影基准Y值
+     * @return double Y坐标值
+     */
     double contourBaseY() const { return m_contourBaseY; }
-    
-    void setZRange(double zMin, double zMax);          // 设置Z值范围
+    /**
+     * @brief 设置Z值范围
+     * @param zMin Z轴最小值
+     * @param zMax Z轴最大值
+     */
+    void setZRange(double zMin, double zMax);
+    /**
+     * @brief 获取Z轴最小值
+     * @return double Z轴最小值
+     */
     double zMin() const { return m_zMin; }
+    /**
+     * @brief 获取Z轴最大值
+     * @return double Z轴最大值
+     */
     double zMax() const { return m_zMax; }
-    
-    void setColorBarTitle(const QString &title);        // 设置颜色条标题
+    /**
+     * @brief 设置颜色条标题
+     * @param title 标题
+     */
+    void setColorBarTitle(const QString &title);
     
     /**
      * @brief 获取VTK演员

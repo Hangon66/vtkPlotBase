@@ -50,35 +50,119 @@ public:
      */
     ~vtkMarker() override;
     
-    // vtkDrawable 接口实现
+    /**
+     * @brief 获取唯一标识符
+     * @return QString 标识符
+     */
     QString id() const override { return m_id; }
+    /**
+     * @brief 获取名称
+     * @return QString 名称
+     */
     QString name() const override { return m_name; }
+    /**
+     * @brief 设置名称
+     * @param name 名称
+     */
     void setName(const QString &name) override { m_name = name; }
+    /**
+     * @brief 设置可见性
+     * @param visible 是否可见
+     */
     void setVisible(bool visible) override;
+    /**
+     * @brief 获取可见性
+     * @return bool 是否可见
+     */
     bool visible() const override { return m_visible; }
+    /**
+     * @brief 设置颜色
+     * @param color 颜色
+     */
     void setColor(const QColor &color) override;
+    /**
+     * @brief 获取颜色
+     * @return QColor 颜色
+     */
     QColor color() const override { return m_color; }
+    /**
+     * @brief 添加到渲染器
+     * @param renderer 渲染器
+     */
     void addToRenderer(vtkRenderer *renderer) override;
+    /**
+     * @brief 从渲染器移除
+     * @param renderer 渲染器
+     */
     void removeFromRenderer(vtkRenderer *renderer) override;
+    /**
+     * @brief 渲染
+     */
     void render() override;
     
-    // 标记特有方法
-    void setPosition(const QVector3D &position);  // 设置位置
-    QVector3D position() const;                   // 获取位置
-    
-    void setLineWidth(double width);              // 设置线宽
+    // ===== 标记特有方法 =====
+    /**
+     * @brief 设置位置
+     * @param position 位置
+     */
+    void setPosition(const QVector3D &position);
+    /**
+     * @brief 获取位置
+     * @return QVector3D 位置
+     */
+    QVector3D position() const;
+    /**
+     * @brief 设置线宽
+     * @param width 线宽
+     */
+    void setLineWidth(double width);
+    /**
+     * @brief 获取线宽
+     * @return double 线宽
+     */
     double lineWidth() const { return m_lineWidth; }
     
-    // 大小模式控制
-    void setRadius(double radius);                                    // 设置绝对半径
-    void setRelativeRadius(double xMin, double xMax, double ratio);  // 设置相对半径
-    void setScreenSize(double screenSize, int windowHeight);          // 设置屏幕大小
-    void updateScreenSize(int windowHeight);                          // 更新屏幕大小（基于相机距离）
+    // ===== 大小模式控制 =====
+    /**
+     * @brief 设置绝对半径
+     * @param radius 半径
+     */
+    void setRadius(double radius);
+    /**
+     * @brief 设置相对半径
+     * @param xMin X轴最小值
+     * @param xMax X轴最大值
+     * @param ratio 相对比例
+     */
+    void setRelativeRadius(double xMin, double xMax, double ratio);
+    /**
+     * @brief 设置屏幕大小
+     * @param screenSize 屏幕大小（像素）
+     * @param windowHeight 窗口高度（像素）
+     */
+    void setScreenSize(double screenSize, int windowHeight);
+    /**
+     * @brief 更新屏幕大小（基于相机距离）
+     * @param windowHeight 窗口高度（像素）
+     */
+    void updateScreenSize(int windowHeight);
     
-    // 查询
-    bool isFilled() const { return m_filled; }                        // 是否填充
-    MarkerSizeMode sizeMode() const { return m_sizeMode; }            // 获取大小模式
-    double radius() const { return m_radius; }                        // 获取当前半径
+    // ===== 查询 =====
+    /**
+     * @brief 是否填充
+     * @return bool 是否填充
+     */
+    bool isFilled() const { return m_filled; }
+    /**
+     * @brief 获取大小模式
+     * @return MarkerSizeMode 大小模式
+     */
+    MarkerSizeMode sizeMode() const { return m_sizeMode; }
+    /**
+     * @brief 获取当前半径
+     * @return double 当前半径
+     */
+    double radius() const { return m_radius; }
     
     /**
      * @brief 获取VTK跟随者

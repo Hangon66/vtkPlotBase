@@ -40,22 +40,75 @@ public:
      */
     ~vtkCurve() override;
     
-    // vtkDrawable 接口实现
+    // ===== vtkDrawable 接口实现 =====
+    /**
+     * @brief 获取唯一标识符
+     * @return QString 标识符
+     */
     QString id() const override { return m_id; }
+    /**
+     * @brief 获取名称
+     * @return QString 名称
+     */
     QString name() const override { return m_name; }
+    /**
+     * @brief 设置名称
+     * @param name 名称
+     */
     void setName(const QString &name) override { m_name = name; }
+    /**
+     * @brief 设置可见性
+     * @param visible 是否可见
+     */
     void setVisible(bool visible) override;
+    /**
+     * @brief 获取可见性
+     * @return bool 是否可见
+     */
     bool visible() const override { return m_visible; }
+    /**
+     * @brief 设置颜色
+     * @param color 颜色
+     */
     void setColor(const QColor &color) override;
+    /**
+     * @brief 获取颜色
+     * @return QColor 颜色
+     */
     QColor color() const override { return m_color; }
+    /**
+     * @brief 添加到渲染器
+     * @param renderer 渲染器
+     */
     void addToRenderer(vtkRenderer *renderer) override;
+    /**
+     * @brief 从渲染器移除
+     * @param renderer 渲染器
+     */
     void removeFromRenderer(vtkRenderer *renderer) override;
+    /**
+     * @brief 渲染
+     */
     void render() override;
     
-    // 曲线特有方法
-    void setLineWidth(double width);           // 设置线宽
-    double lineWidth() const { return m_lineWidth; }
-    void updateData(const QVector<QVector3D> &points);  // 更新曲线数据
+    // ===== 曲线特有方法 =====
+    /**
+     * @brief 设置线宽
+     * @param width 线宽值
+     */
+    void setLineWidth(double width);      
+    
+    /**
+     * @brief 获取线宽
+     * @return double 当前线宽值
+     */
+    double lineWidth() const { return m_lineWidth; }  
+    
+    /**
+     * @brief 更新曲线数据
+     * @param points 新的点数据
+     */
+    void updateData(const QVector<QVector3D> &points);  
     
     /**
      * @brief 获取点数据
