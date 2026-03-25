@@ -27,6 +27,25 @@ LIBS += -lvtkFiltersGeneral-9.6
 LIBS += -lvtkGUISupportQt-9.6
 LIBS += -lvtksys-9.6
 
+# 自动复制 VTK DLL 文件到输出目录
+win32 {
+    # 构建后复制 VTK DLL 到输出目录
+    VTK_BIN_DIR = $$VTK_DIR/bin
+    
+    CONFIG(debug, debug|release) {
+        BUILD_DIR = $$OUT_PWD/debug
+    } else {
+        BUILD_DIR = $$OUT_PWD/release
+    }
+    
+    # 转换路径为 Windows 格式
+    VTK_BIN_WIN = $$shell_path($$VTK_BIN_DIR)
+    BUILD_WIN = $$shell_path($$BUILD_DIR)
+    
+    # 复制所有 DLL 文件
+    QMAKE_POST_LINK += cmd /c xcopy /Y /Q "$$VTK_BIN_WIN\*.dll" "$$BUILD_WIN" $$escape_expand(\n)
+}
+
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
