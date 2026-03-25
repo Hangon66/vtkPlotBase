@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
             double z = (j - nz/2.0) * 0.15;
             double r = sqrt(x*x + z*z);
             double y = (r < 0.01) ? 1.0 : sin(r) / r;  // sinc函数
-            sincPoints.append(QVector3D(x, y, z));
+            sincPoints.append(QVector3D(x, y + 10, z + 5));
         }
     }
     

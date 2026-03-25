@@ -15,7 +15,7 @@
 #include <QVector3D>
 #include <QColor>
 #include <cmath>
-
+#include "drawable/vtkcurve.h"
 // VTK module initialization
 #include <vtkAutoInit.h>
 VTK_MODULE_INIT(vtkRenderingOpenGL2)
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
         helixPoints.append(QVector3D(x, y, z));
     }
     vtkCurve* helix = w.addCurve(helixPoints, Qt::red, 2.0);
-    helix->setName("螺旋线");
+    helix->setName("spiral line");
     
     // ==================== 示例2：正弦曲线 ====================
     QVector<QVector3D> sinePoints;
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
         sinePoints.append(QVector3D(x, y, z));
     }
     vtkCurve* sine = w.addCurve(sinePoints, Qt::cyan, 2.0);
-    sine->setName("正弦曲线");
+    sine->setName("sinusoid");
     
     // ==================== 示例3：余弦曲线（Z方向偏移） ====================
     QVector<QVector3D> cosinePoints;
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
         cosinePoints.append(QVector3D(x, y, z));
     }
     vtkCurve* cosine = w.addCurve(cosinePoints, Qt::yellow, 2.0);
-    cosine->setName("余弦曲线");
+    cosine->setName("cosine curve");
     
     // ==================== 示例4：抛物线 ====================
     QVector<QVector3D> parabolaPoints;
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
         parabolaPoints.append(QVector3D(x, y, z));
     }
     vtkCurve* parabola = w.addCurve(parabolaPoints, Qt::green, 2.0);
-    parabola->setName("抛物线");
+    parabola->setName("parabola");
     
     // 显示图例
     w.setLegendVisible(true);

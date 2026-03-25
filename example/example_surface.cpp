@@ -15,7 +15,7 @@
 #include <QVector3D>
 #include <QColor>
 #include <cmath>
-
+#include "drawable/vtksurface.h"
 // VTK module initialization
 #include <vtkAutoInit.h>
 VTK_MODULE_INIT(vtkRenderingOpenGL2)
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
     }
     
     vtkSurface* paraboloid = w.addSurface(paraboloidPoints, nx1, ny1, Qt::cyan, 0.8);
-    paraboloid->setName("抛物面");
+    paraboloid->setName("Paraboloid");
     
     // ==================== 示例2：平面 z = 0 ====================
     const int nx2 = 20;
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
     }
     
     vtkSurface* plane = w.addSurface(planePoints, nx2, ny2, Qt::gray, 0.6);
-    plane->setName("平面");
+    plane->setName("Plane");
     
     // ==================== 示例3：波浪面 ====================
     const int nx3 = 40;
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     }
     
     vtkSurface* wave = w.addSurface(wavePoints, nx3, nz3, Qt::magenta, 0.7);
-    wave->setName("波浪面");
+    wave->setName("Wave");
     
     // 显示图例
     w.setLegendVisible(true);

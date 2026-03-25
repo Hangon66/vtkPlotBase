@@ -14,7 +14,7 @@
 #include <QVector>
 #include <QVector3D>
 #include <QColor>
-
+#include "drawable/vtkmarker.h"
 // VTK module initialization
 #include <vtkAutoInit.h>
 VTK_MODULE_INIT(vtkRenderingOpenGL2)
@@ -35,20 +35,20 @@ int main(int argc, char *argv[])
     // 默认：屏幕固定大小模式
     
     vtkMarker* marker1 = w.addHollowMarker(QVector3D(0, 0, 0), Qt::red, 15.0, 2.0);
-    marker1->setName("点1(红)");
+    marker1->setName("Point1(Red)");
     
     vtkMarker* marker2 = w.addHollowMarker(QVector3D(2, 2, 0), Qt::green, 12.0, 2.0);
-    marker2->setName("点2(绿)");
+    marker2->setName("Point2(Green)");
     
     vtkMarker* marker3 = w.addHollowMarker(QVector3D(-2, 1, 0), Qt::blue, 10.0, 2.0);
-    marker3->setName("点3(蓝)");
+    marker3->setName("Point3(Blue)");
     
     vtkMarker* marker4 = w.addHollowMarker(QVector3D(1, -2, 0), Qt::yellow, 8.0, 2.0);
-    marker4->setName("点4(黄)");
+    marker4->setName("Point4(Yellow)");
     
     // 使用自动颜色
     vtkMarker* marker5 = w.addHollowMarker(QVector3D(-1, -1, 0));
-    marker5->setName("点5(自动)");
+    marker5->setName("Point5(Auto)");
     
     // 显示图例
     w.setLegendVisible(true);
