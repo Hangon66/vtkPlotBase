@@ -26,6 +26,7 @@
 #include <vtkLegendBoxActor.h>
 #include <vtkProperty.h>
 #include <vtkTextProperty.h>
+#include <vtkTextActor.h>
 
 #include <limits>
 #include <algorithm>
@@ -85,6 +86,7 @@ vtkPlotBase::vtkPlotBase(QWidget *parent)
     , m_autoScaleMargin(0.1)
     , m_legendVisible(true)
     , m_legendPosition(LegendPosition::TopRight)
+    , m_titleVisible(false)
     , m_autoColorIndex(0)
 {
     ui->setupUi(this);
@@ -143,6 +145,9 @@ void vtkPlotBase::setupVTK()
     
     // 创建颜色条
     createScalarBar();
+
+    // 创建标题
+    createTitle();
 
     // 设置相机
     m_renderer->ResetCamera();
@@ -238,6 +243,58 @@ void vtkPlotBase::createScalarBar()
     m_scalarBarActor->SetTextPad(2);
     m_scalarBarActor->SetVisibility(0);  // 默认隐藏
     m_renderer->AddViewProp(m_scalarBarActor);
+}
+
+void vtkPlotBase::createTitle()
+{
+    m_titleActor = vtkSmartPointer<vtkTextActor>::New();
+    m_titleActor->SetInput("");
+    
+    // 设置文本属性
+    vtkTextProperty* textProp = m_titleActor->GetTextProperty();
+    textProp->SetFontFamily(VTK_FONT_FILE);
+    textProp->SetFontFile("C:/Windows/Fonts/msyh.ttc");  // 微软雅黑
+    textProp->SetFontSize(18);
+    textProp->SetColor(1, 1, 1);  // 白色
+    textProp->SetJustificationToCentered();        // 水平居中
+    textProp->SetVerticalJustificationToTop();     // 垂直顶部对齐
+    textProp->SetOpacity(1.0);
+    
+    // 设置位置（使用视口坐标）
+    // vtkTextActor 使用 SetPosition 设置的是显示坐标（像素）
+    // 需要使用 SetPositionCoordinate 来设置视口坐标
+    m_titleActor->GetPositionCoordinate()->SetCoordinateSystemToNormalizedViewport();
+    m_titleActor->GetPositionCoordinate()->SetValue(0.5, 0.96);
+    
+    m_titleActor->SetVisibility(0);  // 默认隐藏
+    m_renderer->AddViewProp(m_titleActor);
+}
+
+void vtkPlotBase::setTitle(const QString &title)
+{
+    m_titleActor->SetInput(title.toUtf8().constData());
+    m_titleActor->SetVisibility(1);
+    m_titleVisible = true;
+    render();
+}
+
+void vtkPlotBase::setTitleVisible(bool visible)
+{
+    m_titleVisible = visible;
+    m_titleActor->SetVisibility(visible ? 1 : 0);
+    render();
+}
+
+void vtkPlotBase::setTitleColor(const QColor &color)
+{
+    m_titleActor->GetTextProperty()->SetColor(color.redF(), color.greenF(), color.blueF());
+    render();
+}
+
+void vtkPlotBase::setTitleFontSize(int size)
+{
+    m_titleActor->GetTextProperty()->SetFontSize(size);
+    render();
 }
 
 void vtkPlotBase::updateLegend()

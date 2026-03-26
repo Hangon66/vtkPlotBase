@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     vtkPlotBase w;
     w.setWindowTitle("VTK Plot Demo");
     w.resize(800, 600);
-    
+    w.setTitle("VTK Plot Demo");
     // 设置坐标轴标题
     w.setAxisTitles("X", "Y", "Z");
     

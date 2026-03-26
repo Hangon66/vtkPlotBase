@@ -20,6 +20,7 @@
 class QVTKOpenGLNativeWidget;
 class vtkRenderWindow;
 class vtkRenderWindowInteractor;
+class vtkTextActor;
 
 // 前向声明新的类
 class vtkDrawable;
@@ -107,6 +108,37 @@ public:
     // ===== 图例操作 =====
     void setLegendVisible(bool visible);                                                              // 显示/隐藏图例
     void setLegendPosition(LegendPosition pos);                                                       // 设置图例位置
+
+    // ===== 标题操作 =====
+    /**
+     * @brief 设置窗口标题文本。
+     *
+     * 在窗口顶部居中显示标题文本，设置后自动显示。
+     *
+     * @param title 标题文本内容。
+     */
+    void setTitle(const QString &title);
+
+    /**
+     * @brief 设置标题可见性。
+     *
+     * @param visible true 显示标题，false 隐藏标题。
+     */
+    void setTitleVisible(bool visible);
+
+    /**
+     * @brief 设置标题颜色。
+     *
+     * @param color 标题文本颜色。
+     */
+    void setTitleColor(const QColor &color);
+
+    /**
+     * @brief 设置标题字号。
+     *
+     * @param size 字号大小（默认 18）。
+     */
+    void setTitleFontSize(int size);
 
     // ===== 曲线操作（委托给 vtkCurve）=====
     vtkCurve* addCurve(const QVector<QVector3D> &points, const QColor &color, double lineWidth);    // 添加曲线
@@ -206,6 +238,17 @@ private:
     // 图例
     bool m_legendVisible;
     LegendPosition m_legendPosition;
+
+    // 标题
+    /**
+     * @brief 标题文本演员，用于在窗口顶部显示标题。
+     */
+    vtkSmartPointer<vtkTextActor> m_titleActor;
+
+    /**
+     * @brief 标题可见性标志。
+     */
+    bool m_titleVisible;
     
     // 自动颜色
     int m_autoColorIndex;
@@ -216,6 +259,7 @@ private:
     void createAxes();                                      // 创建坐标轴
     void createLegend();                                    // 创建图例
     void createScalarBar();                                 // 创建颜色条
+    void createTitle();                                     // 创建标题
     void saveDefaultCamera();                               // 保存默认相机参数
     
     // 更新方法
