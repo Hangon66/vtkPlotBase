@@ -51,22 +51,22 @@ void vtkPlotBaseInteractorStyle::OnKeyPress()
     if (strcmp(keySym, "r") == 0 || strcmp(keySym, "R") == 0) {
         if (m_plotBase) {
             m_plotBase->resetView();
-            qDebug() << "R key pressed: reset view";
+            // qDebug() << "R key pressed: reset view";
         }
     } else if (strcmp(keySym, "x") == 0 || strcmp(keySym, "X") == 0) {
         if (m_plotBase) {
             m_plotBase->setViewSide();
-            qDebug() << "X key pressed: side view";
+            // qDebug() << "X key pressed: side view";
         }
     } else if (strcmp(keySym, "y") == 0 || strcmp(keySym, "Y") == 0) {
         if (m_plotBase) {
             m_plotBase->setViewTop();
-            qDebug() << "Y key pressed: top view";
+            // qDebug() << "Y key pressed: top view";
         }
     } else if (strcmp(keySym, "z") == 0 || strcmp(keySym, "Z") == 0) {
         if (m_plotBase) {
             m_plotBase->setViewFront();
-            qDebug() << "Z key pressed: front view";
+            // qDebug() << "Z key pressed: front view";
         }
     } else {
         this->vtkInteractorStyleTrackballCamera::OnKeyPress();
@@ -87,6 +87,7 @@ vtkPlotBase::vtkPlotBase(QWidget *parent)
     , m_legendVisible(true)
     , m_legendPosition(LegendPosition::TopRight)
     , m_titleVisible(false)
+    , m_cameraInitialized(false)
     , m_autoColorIndex(0)
 {
     ui->setupUi(this);
@@ -104,15 +105,6 @@ vtkPlotBase::~vtkPlotBase()
 void vtkPlotBase::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
-    
-    // 首次显示时，根据实际数据重置相机
-    static bool firstShow = true;
-    if (firstShow) {
-        firstShow = false;
-        m_renderer->ResetCamera();
-        saveDefaultCamera();
-    }
-    
     updateAllScreenMarkerScales();
     render();
 }
@@ -574,7 +566,15 @@ void vtkPlotBase::computeDataBounds(double &xMin, double &xMax, double &yMin, do
 
 void vtkPlotBase::autoScaleIfNeeded()
 {
-    if (m_autoScaleMode == AutoScaleMode::None) return;
+    // 即使不需要自动缩放，也要初始化相机
+    if (m_autoScaleMode == AutoScaleMode::None) {
+        if (!m_cameraInitialized) {
+            m_renderer->ResetCamera();
+            saveDefaultCamera();
+            m_cameraInitialized = true;
+        }
+        return;
+    }
     
     double xMin, xMax, yMin, yMax, zMin, zMax;
     computeDataBounds(xMin, xMax, yMin, yMax, zMin, zMax);
@@ -612,6 +612,13 @@ void vtkPlotBase::autoScaleIfNeeded()
     }
     
     updateAxesBounds();
+    
+    // 首次添加数据后初始化相机位置
+    if (!m_cameraInitialized) {
+        m_renderer->ResetCamera();
+        saveDefaultCamera();
+        m_cameraInitialized = true;
+    }
 }
 
 void vtkPlotBase::render()

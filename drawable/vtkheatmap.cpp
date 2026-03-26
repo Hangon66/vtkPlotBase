@@ -23,7 +23,7 @@ vtkHeatmap::vtkHeatmap(const QVector<QVector3D> &points, int nx, int ny,
     , m_visible(true)
     , m_contourVisible(true)
     , m_contourCount(5)
-    , m_contourBaseY(0.0)
+    , m_contourBaseY(0.0)  // 将在创建等高线时更新
     , m_zMin(0.0)
     , m_zMax(1.0)
     , m_renderer(nullptr)
@@ -47,6 +47,7 @@ vtkHeatmap::vtkHeatmap(const QVector<QVector3D> &points, int nx, int ny,
     }
     m_zMin = heightMin;
     m_zMax = heightMax;
+    m_contourBaseY = heightMin;  // 默认投影到数据最小高度
     
     // 创建四边形网格
     createQuadMesh(points, nx, ny);

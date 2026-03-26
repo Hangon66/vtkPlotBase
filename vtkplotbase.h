@@ -249,6 +249,13 @@ private:
      * @brief 标题可见性标志。
      */
     bool m_titleVisible;
+
+    /**
+     * @brief 相机是否已初始化标志。
+     *
+     * 首次添加数据后会自动初始化相机位置。
+     */
+    bool m_cameraInitialized;
     
     // 自动颜色
     int m_autoColorIndex;
