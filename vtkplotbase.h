@@ -90,15 +90,14 @@ protected:
     void showEvent(QShowEvent *event) override;    // 窗口显示事件
 
     /**
-     * @brief 事件过滤器，用于拦截子控件的事件。
+     * @brief 重写滚轮事件处理。
      *
-     * 主要用于拦截 VTK 控件的滚轮事件，防止事件传播到父级滚动区域。
+     * 用于阻止滚轮事件传播到父级滚动区域（如 QScrollArea），
+     * 同时让 VTK 控件正常处理滚轮缩放。
      *
-     * @param watched 接收事件的对象。
-     * @param event 事件对象。
-     * @return true 表示事件已处理，不再传播；false 表示继续传递事件。
+     * @param event 滚轮事件对象。
      */
-    bool eventFilter(QObject *watched, QEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 public:
     // ===== 坐标系操作 =====

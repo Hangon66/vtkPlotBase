@@ -12,6 +12,7 @@
 #include "drawable/vtkheatmap.h"
 
 #include <QApplication>
+#include <QSurfaceFormat>
 #include <QVector>
 #include <QVector3D>
 #include <QColor>
@@ -24,6 +25,13 @@ VTK_MODULE_INIT(vtkInteractionStyle)
 
 int main(int argc, char *argv[])
 {
+    // 设置 VTK 需要的 OpenGL 格式（必须在 QApplication 创建后、任何控件创建前设置）
+    QSurfaceFormat format = QVTKOpenGLNativeWidget::defaultFormat();
+#ifdef _WINDOWS
+    format.setProfile(QSurfaceFormat::CompatibilityProfile);
+#endif
+    QSurfaceFormat::setDefaultFormat(format);
+    
     QApplication a(argc, argv);
     
     vtkPlotBase w;

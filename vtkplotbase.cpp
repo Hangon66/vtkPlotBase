@@ -9,6 +9,7 @@
 
 // VTK Qt 头文件
 #include <QVTKOpenGLNativeWidget.h>
+#include <vtkGenericOpenGLRenderWindow.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkInteractorStyleTrackballCamera.h>
@@ -110,16 +111,11 @@ void vtkPlotBase::showEvent(QShowEvent *event)
     render();
 }
 
-// 事件过滤器：拦截 VTK 控件的滚轮事件，防止传播到父级滚动区域
-bool vtkPlotBase::eventFilter(QObject *watched, QEvent *event)
+// 重写滚轮事件：阻止事件传播到父级滚动区域，同时让 VTK 正常处理缩放
+void vtkPlotBase::wheelEvent(QWheelEvent *event)
 {
-    if (watched == m_vtkWidget && event->type() == QEvent::Wheel) {
-        // 接受滚轮事件，阻止其传播到父窗口
-        event->accept();
-        // 返回 true 表示事件已处理，不再传递
-        return true;
-    }
-    return QWidget::eventFilter(watched, event);
+    // 接受事件，阻止向上传播到 QScrollArea
+    event->accept();
 }
 
 // ==================== 初始化方法 ====================
@@ -132,16 +128,17 @@ void vtkPlotBase::setupVTK()
 
     // 创建 VTK Qt 控件
     m_vtkWidget = new QVTKOpenGLNativeWidget(this);
-    m_vtkWidget->installEventFilter(this);  // 安装事件过滤器，拦截滚轮事件
     layout->addWidget(m_vtkWidget);
 
-    // 获取渲染窗口
-    vtkSmartPointer<vtkRenderWindow> renderWindow = m_vtkWidget->renderWindow();
+    // 创建渲染窗口并设置给控件（官方示例风格）
+    vtkSmartPointer<vtkGenericOpenGLRenderWindow> renderWindow =
+        vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
+    m_vtkWidget->setRenderWindow(renderWindow);
 
     // 创建渲染器
     m_renderer = vtkSmartPointer<vtkRenderer>::New();
     m_renderer->SetBackground(0.1, 0.1, 0.15);
-    renderWindow->AddRenderer(m_renderer);
+    m_vtkWidget->renderWindow()->AddRenderer(m_renderer);
 
     // 创建坐标轴
     createAxes();
