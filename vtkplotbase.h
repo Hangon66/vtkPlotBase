@@ -89,6 +89,17 @@ public:
 protected:
     void showEvent(QShowEvent *event) override;    // 窗口显示事件
 
+    /**
+     * @brief 事件过滤器，用于拦截子控件的事件。
+     *
+     * 主要用于拦截 VTK 控件的滚轮事件，防止事件传播到父级滚动区域。
+     *
+     * @param watched 接收事件的对象。
+     * @param event 事件对象。
+     * @return true 表示事件已处理，不再传播；false 表示继续传递事件。
+     */
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 public:
     // ===== 坐标系操作 =====
     void setAxisRange(double xMin, double xMax, double yMin, double yMax, double zMin, double zMax);  // 设置坐标轴范围

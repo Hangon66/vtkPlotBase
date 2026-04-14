@@ -35,6 +35,7 @@
 #include <QDebug>
 #include <QtGlobal>
 #include <QShowEvent>
+#include <QWheelEvent>
 
 // ==================== 自定义交互器样式 ====================
 
@@ -109,6 +110,18 @@ void vtkPlotBase::showEvent(QShowEvent *event)
     render();
 }
 
+// 事件过滤器：拦截 VTK 控件的滚轮事件，防止传播到父级滚动区域
+bool vtkPlotBase::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_vtkWidget && event->type() == QEvent::Wheel) {
+        // 接受滚轮事件，阻止其传播到父窗口
+        event->accept();
+        // 返回 true 表示事件已处理，不再传递
+        return true;
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
 // ==================== 初始化方法 ====================
 
 void vtkPlotBase::setupVTK()
@@ -119,6 +132,7 @@ void vtkPlotBase::setupVTK()
 
     // 创建 VTK Qt 控件
     m_vtkWidget = new QVTKOpenGLNativeWidget(this);
+    m_vtkWidget->installEventFilter(this);  // 安装事件过滤器，拦截滚轮事件
     layout->addWidget(m_vtkWidget);
 
     // 获取渲染窗口
