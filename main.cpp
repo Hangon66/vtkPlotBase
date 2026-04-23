@@ -10,9 +10,10 @@
 #include "drawable/vtkmarker.h"
 #include "drawable/vtksurface.h"
 #include "drawable/vtkheatmap.h"
+#include "vtkplot2d.h"
+#include "drawable/vtkheatmap2d.h"
 
 #include <QApplication>
-#include <QSurfaceFormat>
 #include <QVector>
 #include <QVector3D>
 #include <QColor>
@@ -20,26 +21,17 @@
 
 // VTK module initialization
 #include <vtkAutoInit.h>
+VTK_MODULE_INIT(vtkRenderingContextOpenGL2)
 VTK_MODULE_INIT(vtkRenderingOpenGL2)
 VTK_MODULE_INIT(vtkInteractionStyle)
 
-int main(int argc, char *argv[])
-{
-    // 设置 VTK 需要的 OpenGL 格式（必须在 QApplication 创建后、任何控件创建前设置）
-    QSurfaceFormat format = QVTKOpenGLNativeWidget::defaultFormat();
-#ifdef _WINDOWS
-    format.setProfile(QSurfaceFormat::CompatibilityProfile);
-#endif
-    QSurfaceFormat::setDefaultFormat(format);
-    
-    QApplication a(argc, argv);
-    
-    vtkPlotBase w;
-    w.setWindowTitle("VTK Plot Demo");
-    w.resize(800, 600);
-    w.setTitle("VTK Plot Demo");
+void show3d() {
+    vtkPlotBase *w = new vtkPlotBase();
+    w->setWindowTitle("VTK Plot Demo");
+    w->resize(800, 600);
+    w->setTitle("VTK Plot Demo");
     // 设置坐标轴标题
-    w.setAxisTitles("X", "Y", "Z");
+    w->setAxisTitles("X", "Y", "Z");
     
     // ==================== 曲线 ====================
     QVector<QVector3D> helixPoints;
@@ -52,18 +44,18 @@ int main(int argc, char *argv[])
     }
     
     // 添加曲线（自动颜色）
-    vtkCurve* helix = w.addCurve(helixPoints);
+    vtkCurve* helix = w->addCurve(helixPoints);
     helix->setName("11");
     helix->setLineWidth(2.0);
 
     // ==================== 标记点 ====================
     // 填充圆标记
-    vtkMarker* originFilled = w.addFilledMarker(QVector3D(8, 8, 8));
+    vtkMarker* originFilled = w->addFilledMarker(QVector3D(8, 8, 8));
     originFilled->setName("22");
     originFilled->setFilled(true);
     
     // 空心环标记
-    vtkMarker* originHollow = w.addHollowMarker(QVector3D(5, 5, 5));
+    vtkMarker* originHollow = w->addHollowMarker(QVector3D(5, 5, 5));
     originHollow->setName("33");
     originHollow->setFilled(false);
 
@@ -82,7 +74,7 @@ int main(int argc, char *argv[])
         }
     }
     
-    vtkSurface* paraboloid = w.addSurface(paraboloidPoints, nx1, ny1);
+    vtkSurface* paraboloid = w->addSurface(paraboloidPoints, nx1, ny1);
     paraboloid->setName("444");
     
     // ==================== Sinc函数曲面 ====================
@@ -102,14 +94,61 @@ int main(int argc, char *argv[])
     }
     
     // 添加热力图曲面，Y值（高度）映射为颜色
-    vtkHeatmap* sinc = w.addHeatmapSurface(sincPoints, nx, nz, "Sinc(r)");
+    vtkHeatmap* sinc = w->addHeatmapSurface(sincPoints, nx, nz, "Sinc(r)");
 
     // 设置等高线数量
     sinc->setContourCount(5);
 
     // 显示图例
-    w.setLegendVisible(true);
+    w->setLegendVisible(true);
     
-    w.show();
-    return a.exec();
+    w->show();
 }
+
+void show2d() {
+    vtkPlot2D *w = new vtkPlot2D();
+    w->setWindowTitle("2D Heatmap Demo");
+    w->resize(600, 600);
+
+    // 生成二维热力图数据：sin(x) * cos(y)
+    const int size = 200;
+    QVector<double> data;
+    data.resize(size * size);
+
+    for (int i = 0; i < size; ++i) {
+        for (int j = 0; j < size; ++j) {
+            double x = i * 360.0 / size;
+            double y = j * 360.0 / size;
+            data[i * size + j] = std::sin(x * M_PI / 180.0) * std::cos(y * M_PI / 180.0);
+        }
+    }
+
+    // 添加二维热力图
+    vtkHeatmap2D* heatmap = w->addHeatmap2D(data, size, size, "2D Heatmap");
+    heatmap->setChartTitle("2D Heatmap"); // 设置标题
+    heatmap->setColorBarTitle("Color Bar");
+    heatmap->setXAxisTitle("X Axis1");
+    heatmap->setYAxisTitle("Y Axis1");
+    heatmap->setName("2D Heatmap");
+
+    // 设置原点和间距
+    heatmap->setOrigin(0.0, 0.0);
+    heatmap->setSpacing(360.0 / size, 360.0 / size);
+
+    // 设置背景颜色
+    w->setBackground(QColor(30, 30, 40));
+
+    w->show();
+}
+
+int main(int argc, char *argv[])
+{
+    QApplication a(argc, argv);
+
+    show3d();
+
+    return a.exec();    
+
+}
+
+

@@ -19,6 +19,10 @@ LIBS += -lvtkCommonTransforms-9.6
 LIBS += -lvtkRenderingCore-9.6
 LIBS += -lvtkRenderingOpenGL2-9.6
 LIBS += -lvtkRenderingAnnotation-9.6
+LIBS += -lvtkRenderingContext2D-9.6
+LIBS += -lvtkRenderingContextOpenGL2-9.6
+LIBS += -lvtkChartsCore-9.6
+LIBS += -lvtkViewsContext2D-9.6
 LIBS += -lvtkRenderingFreeType-9.6
 LIBS += -lvtkInteractionStyle-9.6
 LIBS += -lvtkFiltersCore-9.6
@@ -53,21 +57,27 @@ win32 {
 SOURCES += \
     main.cpp \
     vtkplotbase.cpp \
+    vtkplot2d.cpp \
     drawable/vtkcurve.cpp \
     drawable/vtkmarker.cpp \
     drawable/vtksurface.cpp \
-    drawable/vtkheatmap.cpp
+    drawable/vtkheatmap.cpp \
+    drawable/vtkheatmap2d.cpp
 
 HEADERS += \
     vtkplotbase.h \
+    vtkplot2d.h \
     drawable/vtkdrawable.h \
+    drawable/vtkchartdrawable.h \
     drawable/vtkcurve.h \
     drawable/vtkmarker.h \
     drawable/vtksurface.h \
-    drawable/vtkheatmap.h
+    drawable/vtkheatmap.h \
+    drawable/vtkheatmap2d.h
 
 FORMS += \
-    vtkplotbase.ui
+    vtkplotbase.ui \
+    vtkplot2d.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

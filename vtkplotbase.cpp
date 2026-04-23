@@ -130,7 +130,7 @@ void vtkPlotBase::setupVTK()
     m_vtkWidget = new QVTKOpenGLNativeWidget(this);
     layout->addWidget(m_vtkWidget);
 
-    // 创建渲染窗口并设置给控件（官方示例风格）
+    // 创建渲染窗口并设置给控件（必须使用 vtkGenericOpenGLRenderWindow）
     vtkSmartPointer<vtkGenericOpenGLRenderWindow> renderWindow =
         vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
     m_vtkWidget->setRenderWindow(renderWindow);
