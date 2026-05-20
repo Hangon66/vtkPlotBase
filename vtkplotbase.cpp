@@ -634,7 +634,7 @@ void vtkPlotBase::autoScaleIfNeeded()
 
 void vtkPlotBase::render()
 {
-    if (m_vtkWidget && m_vtkWidget->renderWindow()) {
+    if (m_vtkWidget && m_vtkWidget->isValid() && m_vtkWidget->renderWindow()) {
         m_vtkWidget->renderWindow()->Render();
     }
 }
