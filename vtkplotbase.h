@@ -38,8 +38,9 @@ QT_END_NAMESPACE
 // 自适应缩放模式
 enum class AutoScaleMode {
     None,         // 无自动缩放（固定坐标轴范围）
-    Independent,  // 各轴独立缩放
-    EqualRatio    // 等比例缩放（1:1:1）
+    Independent,  // 坐标轴适应曲面
+    EqualRatio,   // 等比例缩放（1:1:1）
+    StretchFill   // 拉伸填满立方体（归一化几何体，坐标轴标签显示原始范围）
 };
 
 // 图例位置
@@ -103,6 +104,22 @@ public:
     // ===== 坐标系操作 =====
     void setAxisRange(double xMin, double xMax, double yMin, double yMax, double zMin, double zMax);  // 设置坐标轴范围
     void setAxisTitles(const QString &xTitle, const QString &yTitle, const QString &zTitle);          // 设置坐标轴标题
+
+    /**
+     * @brief 仅设置坐标轴刻度标签范围，不影响物理边界。
+     *
+     * 当几何体已归一化到等比空间时，使用此方法设置原始数据范围作为刻度标签，
+     * 使坐标轴显示真实数值而物理坐标系保持 1:1:1 等比。
+     *
+     * @param xMin X 轴刻度最小值。
+     * @param xMax X 轴刻度最大值。
+     * @param yMin Y 轴刻度最小值。
+     * @param yMax Y 轴刻度最大值。
+     * @param zMin Z 轴刻度最小值。
+     * @param zMax Z 轴刻度最大值。
+     */
+    void setAxisLabelRange(double xMin, double xMax, double yMin, double yMax, double zMin, double zMax);
+
     void setGridVisible(bool visible);                                                               // 设置网格可见性
     void setBackground(const QColor &color);                                                          // 设置背景颜色
     void setAutoScaleMode(AutoScaleMode mode);                                                        // 设置自适应缩放模式
@@ -238,6 +255,23 @@ private:
     // 自适应缩放
     AutoScaleMode m_autoScaleMode;
     double m_autoScaleMargin;                               // 边距百分比
+
+    /**
+     * @brief StretchFill 模式下的原始坐标轴标签范围。
+     *
+     * 几何体归一化到 [0,1] 空间后，坐标轴标签需显示原始数据范围，
+     * 这组变量存储原始数据边界，在 updateAxesBounds() 中覆盖刻度标签。
+     */
+    double m_labelXMin, m_labelXMax;
+    double m_labelYMin, m_labelYMax;
+    double m_labelZMin, m_labelZMax;
+
+    /**
+     * @brief 标签范围是否已初始化标志。
+     *
+     * 首次添加 StretchFill 模式数据时设为 true。
+     */
+    bool m_labelRangesValid;
     
     // 默认相机参数
     double m_defaultCameraPosition[3];
@@ -288,6 +322,35 @@ private:
     void autoScaleIfNeeded();                               // 按需自适应缩放
     void updateAllMarkerScales();                           // 更新所有标记点缩放
     void updateAllScreenMarkerScales();                     // 更新屏幕固定大小标记
+
+    // StretchFill 辅助方法
+
+    /**
+     * @brief 计算点集的三轴边界。
+     *
+     * @param points 输入点集。
+     * @param xMin X 轴最小值输出。
+     * @param xMax X 轴最大值输出。
+     * @param yMin Y 轴最小值输出。
+     * @param yMax Y 轴最大值输出。
+     * @param zMin Z 轴最小值输出。
+     * @param zMax Z 轴最大值输出。
+     */
+    void computePointsBounds(const QVector<QVector3D> &points,
+                             double &xMin, double &xMax,
+                             double &yMin, double &yMax,
+                             double &zMin, double &zMax);
+
+    /**
+     * @brief 在 StretchFill 模式下归一化点集并更新标签范围。
+     *
+     * 将点集各轴映射到 [0,1]，并将原始数据范围取并集更新到标签范围变量。
+     * 非 StretchFill 模式时不做任何操作。
+     *
+     * @param points 输入点集，将被就地归一化。
+     * @return true 执行了归一化，false 未执行（非 StretchFill 模式）。
+     */
+    bool applyStretchFillIfNeeded(QVector<QVector3D> &points);
     
     // 相机回调
     void setupCameraCallback();

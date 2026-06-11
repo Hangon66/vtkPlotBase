@@ -17,6 +17,10 @@
 #include <QVector>
 #include <QVector3D>
 #include <QColor>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
 #include <cmath>
 
 // VTK module initialization
@@ -141,11 +145,102 @@ void show2d() {
     w->show();
 }
 
+/**
+ * @brief 从 JSON 数据解析并显示热力图。
+ *
+ * 遍历 JSON 中的 charts 数组，根据 type 选择显示方式：
+ * - surface 类型：使用 vtkPlotBase 的 3D 热力图曲面显示
+ * - line 类型：暂不处理
+ *
+ * @param jsonData JSON 文件的原始字节数据。
+ */
+void testheatmapFromJson(const QByteArray &jsonData) {
+    QJsonParseError error;
+    QJsonDocument doc = QJsonDocument::fromJson(jsonData, &error);
+    if (doc.isNull()) {
+        qWarning() << "JSON 解析失败:" << error.errorString();
+        return;
+    }
+
+    QJsonObject root = doc.object();
+    QJsonArray charts = root["charts"].toArray();
+
+    for (const QJsonValue &chartVal : charts) {
+        QJsonObject chart = chartVal.toObject();
+        QString type = chart["type"].toString();
+        QString figure = chart["figure"].toString();
+
+        // 只处理 surface 类型（三维热力图曲面）
+        if (type != "surface") continue;
+
+        // 提取坐标轴标签
+        QString xLabel = chart["x_label"].toString();
+        QString yLabel = chart["y_label"].toString();
+        QString zLabel = chart["z_label"].toString();
+
+        // 提取 x, y 轴数据
+        QJsonArray xArr = chart["x"].toArray();
+        QJsonArray yArr = chart["y"].toArray();
+        QJsonArray zArr = chart["z"].toArray();
+
+        int nx = xArr.size();  // x 方向点数
+        int ny = yArr.size();  // y 方向点数
+
+        // 构造三维点集：Y 为高度（z 数据值）
+        QVector<QVector3D> points;
+        points.reserve(nx * ny);
+        for (int j = 0; j < ny; ++j) {
+            QJsonArray rowArr = zArr[j].toArray();
+            for (int i = 0; i < nx; ++i) {
+                double xVal = xArr[i].toDouble();
+                double yVal = rowArr[i].toDouble();  // Y 轴 = z 数据值（高度）
+                double zVal = yArr[j].toDouble();    // Z 轴 = y 坐标
+                points.append(QVector3D(xVal, yVal, zVal));
+            }
+        }
+
+        // 创建三维热力图曲面窗口
+        vtkPlotBase *w = new vtkPlotBase();
+        w->setWindowTitle(figure);
+        w->resize(800, 600);
+        w->setTitle(figure);
+
+        // 拉伸填满立方体模式：自动归一化几何体，坐标轴标签显示原始范围
+        w->setAutoScaleMode(AutoScaleMode::StretchFill);
+
+        // 设置坐标轴标题（曲面在 XZ 平面，高度为 Y）
+        w->setAxisTitles(xLabel, zLabel, yLabel);
+
+        // 添加热力图曲面，StretchFill 模式下自动处理归一化和标量重映射
+        vtkHeatmap *heatmap = w->addHeatmapSurface(points, nx, ny, zLabel);
+        heatmap->setContourCount(5);
+
+        w->setLegendVisible(true);
+        w->show();
+    }
+}
+
+/**
+ * @brief 读取 JSON 文件并调用热力图显示。
+ *
+ * 从程序运行目录下读取 distributed_network_charts.json 文件，
+ * 交由 testheatmapFromJson 解析并显示。
+ */
+void testheatmap() {
+    QFile file("distributed_network_charts.json");
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "无法打开 JSON 文件:" << file.fileName();
+        return;
+    }
+    testheatmapFromJson(file.readAll());
+    file.close();
+}
+
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    show3d();
+    testheatmap();
 
     return a.exec();    
 

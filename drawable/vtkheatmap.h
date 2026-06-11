@@ -203,6 +203,18 @@ public:
      */
     void updateContour();
 
+    /**
+     * @brief 重设标量值与颜色映射范围，用于归一化坐标场景。
+     *
+     * 当几何体已归一化到 [0,1] 空间时，点标量值也在 [0,1] 范围。
+     * 调用此方法将标量值重新映射到 [scalarMin, scalarMax]，
+     * 使颜色条和等高线显示真实数值。
+     *
+     * @param scalarMin 标量最小值（原始数据最小值）。
+     * @param scalarMax 标量最大值（原始数据最大值）。
+     */
+    void remapScalarRange(double scalarMin, double scalarMax);
+
 private:
     /**
      * @brief 创建彩虹颜色查找表

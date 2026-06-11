@@ -13,6 +13,7 @@
 #include <vtkPolyLine.h>
 #include <vtkProperty.h>
 #include <vtkPointData.h>
+#include <vtkDataArray.h>
 
 // vtkHeatmap 构造函数
 vtkHeatmap::vtkHeatmap(const QVector<QVector3D> &points, int nx, int ny,
@@ -207,6 +208,41 @@ void vtkHeatmap::updateContour()
     }
 }
 
+// 重设标量值与颜色映射范围
+void vtkHeatmap::remapScalarRange(double scalarMin, double scalarMax)
+{
+    if (!m_polyData || !m_mapper) return;
+
+    // 更新内部 Z 范围
+    m_zMin = scalarMin;
+    m_zMax = scalarMax;
+
+    // 重新映射点标量值：从 [0,1] 映射到 [scalarMin, scalarMax]
+    vtkFloatArray *scalars = vtkFloatArray::SafeDownCast(m_polyData->GetPointData()->GetScalars());
+    if (scalars) {
+        for (vtkIdType i = 0; i < scalars->GetNumberOfTuples(); ++i) {
+            double normalizedVal = scalars->GetValue(i);  // 当前值在 [0,1]
+            double remappedVal = scalarMin + normalizedVal * (scalarMax - scalarMin);
+            scalars->SetValue(i, static_cast<float>(remappedVal));
+        }
+        scalars->Modified();
+    }
+
+    // 更新颜色查找表和映射器范围
+    m_lookupTable = createRainbowLookupTable(scalarMin, scalarMax);
+    m_mapper->SetScalarRange(scalarMin, scalarMax);
+    m_mapper->SetLookupTable(m_lookupTable);
+    m_mapper->UseLookupTableScalarRangeOn();
+
+    // 更新颜色条
+    if (m_scalarBarActor && m_lookupTable) {
+        m_scalarBarActor->SetLookupTable(m_lookupTable);
+    }
+
+    // 更新等高线（不修改 m_contourBaseY，它应保持为物理 Y 最小值）
+    updateContour();
+}
+
 // 创建彩虹颜色查找表
 vtkSmartPointer<vtkLookupTable> vtkHeatmap::createRainbowLookupTable(double zMin, double zMax)
 {
@@ -312,13 +348,16 @@ void vtkHeatmap::createContourProjection(double heightMin, double heightMax)
     
     vtkPolyData* contourOutput = contourFilter->GetOutput();
     vtkPoints* contourPoints = contourOutput->GetPoints();
+    vtkDataArray* contourScalars = contourOutput->GetPointData()->GetScalars();
     
-    // 投影等高线点
+    // 投影等高线点：Y 坐标投影到基准面，标量取等高线输出的真实标量值
     for (vtkIdType i = 0; i < contourPoints->GetNumberOfPoints(); ++i) {
         double pt[3];
         contourPoints->GetPoint(i, pt);
         projectedPoints->InsertNextPoint(pt[0], m_contourBaseY, pt[2]);
-        projectedScalars->InsertNextValue(pt[1]);
+        // 使用等高线输出的标量值（而非 Y 坐标），兼容归一化场景
+        double scalarVal = contourScalars ? contourScalars->GetTuple1(i) : pt[1];
+        projectedScalars->InsertNextValue(static_cast<float>(scalarVal));
     }
     
     projectedContour->SetPoints(projectedPoints);

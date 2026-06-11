@@ -86,6 +86,10 @@ vtkPlotBase::vtkPlotBase(QWidget *parent)
     , m_zMin(-1.0), m_zMax(1.0)
     , m_autoScaleMode(AutoScaleMode::EqualRatio)
     , m_autoScaleMargin(0.1)
+    , m_labelXMin(0.0), m_labelXMax(1.0)
+    , m_labelYMin(0.0), m_labelYMax(1.0)
+    , m_labelZMin(0.0), m_labelZMax(1.0)
+    , m_labelRangesValid(false)
     , m_legendVisible(true)
     , m_legendPosition(LegendPosition::TopRight)
     , m_titleVisible(false)
@@ -485,6 +489,13 @@ void vtkPlotBase::updateAxesBounds()
     m_cubeAxesActor->SetYAxisRange(m_yMin, m_yMax);
     m_cubeAxesActor->SetZAxisRange(m_zMin, m_zMax);
 
+    // StretchFill 模式下，坐标轴刻度标签显示原始数据范围
+    if (m_autoScaleMode == AutoScaleMode::StretchFill && m_labelRangesValid) {
+        m_cubeAxesActor->SetXAxisRange(m_labelXMin, m_labelXMax);
+        m_cubeAxesActor->SetYAxisRange(m_labelYMin, m_labelYMax);
+        m_cubeAxesActor->SetZAxisRange(m_labelZMin, m_labelZMax);
+    }
+
     updateAllMarkerScales();
     m_renderer->ResetCamera();
     render();
@@ -660,6 +671,65 @@ void vtkPlotBase::updateAllScreenMarkerScales()
     }
 }
 
+// ==================== StretchFill 辅助方法 ====================
+
+void vtkPlotBase::computePointsBounds(const QVector<QVector3D> &points,
+                                       double &xMin, double &xMax,
+                                       double &yMin, double &yMax,
+                                       double &zMin, double &zMax)
+{
+    xMin = std::numeric_limits<double>::max();
+    xMax = std::numeric_limits<double>::lowest();
+    yMin = std::numeric_limits<double>::max();
+    yMax = std::numeric_limits<double>::lowest();
+    zMin = std::numeric_limits<double>::max();
+    zMax = std::numeric_limits<double>::lowest();
+
+    for (const auto &pt : points) {
+        xMin = std::min(xMin, static_cast<double>(pt.x()));
+        xMax = std::max(xMax, static_cast<double>(pt.x()));
+        yMin = std::min(yMin, static_cast<double>(pt.y()));
+        yMax = std::max(yMax, static_cast<double>(pt.y()));
+        zMin = std::min(zMin, static_cast<double>(pt.z()));
+        zMax = std::max(zMax, static_cast<double>(pt.z()));
+    }
+}
+
+bool vtkPlotBase::applyStretchFillIfNeeded(QVector<QVector3D> &points)
+{
+    if (m_autoScaleMode != AutoScaleMode::StretchFill) return false;
+
+    // 计算原始数据边界
+    double origXMin, origXMax, origYMin, origYMax, origZMin, origZMax;
+    computePointsBounds(points, origXMin, origXMax, origYMin, origYMax, origZMin, origZMax);
+
+    // 防止除零
+    double xRange = (origXMax - origXMin) > 1e-10 ? (origXMax - origXMin) : 1.0;
+    double yRange = (origYMax - origYMin) > 1e-10 ? (origYMax - origYMin) : 1.0;
+    double zRange = (origZMax - origZMin) > 1e-10 ? (origZMax - origZMin) : 1.0;
+
+    // 归一化到 [0,1] 空间
+    for (auto &pt : points) {
+        pt.setX(static_cast<float>((pt.x() - origXMin) / xRange));
+        pt.setY(static_cast<float>((pt.y() - origYMin) / yRange));
+        pt.setZ(static_cast<float>((pt.z() - origZMin) / zRange));
+    }
+
+    // 更新标签范围（取并集）
+    if (!m_labelRangesValid) {
+        m_labelXMin = origXMin; m_labelXMax = origXMax;
+        m_labelYMin = origYMin; m_labelYMax = origYMax;
+        m_labelZMin = origZMin; m_labelZMax = origZMax;
+        m_labelRangesValid = true;
+    } else {
+        m_labelXMin = std::min(m_labelXMin, origXMin); m_labelXMax = std::max(m_labelXMax, origXMax);
+        m_labelYMin = std::min(m_labelYMin, origYMin); m_labelYMax = std::max(m_labelYMax, origYMax);
+        m_labelZMin = std::min(m_labelZMin, origZMin); m_labelZMax = std::max(m_labelZMax, origZMax);
+    }
+
+    return true;
+}
+
 void vtkPlotBase::setupCameraCallback()
 {
     if (m_cameraCallback) return;
@@ -710,6 +780,14 @@ void vtkPlotBase::setAxisTitles(const QString &xTitle, const QString &yTitle, co
     m_cubeAxesActor->SetXTitle(xTitle.toUtf8().constData());
     m_cubeAxesActor->SetYTitle(yTitle.toUtf8().constData());
     m_cubeAxesActor->SetZTitle(zTitle.toUtf8().constData());
+    render();
+}
+
+void vtkPlotBase::setAxisLabelRange(double xMin, double xMax, double yMin, double yMax, double zMin, double zMax)
+{
+    m_cubeAxesActor->SetXAxisRange(xMin, xMax);
+    m_cubeAxesActor->SetYAxisRange(yMin, yMax);
+    m_cubeAxesActor->SetZAxisRange(zMin, zMax);
     render();
 }
 
@@ -836,7 +914,10 @@ void vtkPlotBase::setLegendPosition(LegendPosition pos)
 
 vtkCurve* vtkPlotBase::addCurve(const QVector<QVector3D> &points, const QColor &color, double lineWidth)
 {
-    vtkCurve *curve = new vtkCurve(points, color, lineWidth);
+    QVector<QVector3D> effectivePoints = points;
+    applyStretchFillIfNeeded(effectivePoints);
+
+    vtkCurve *curve = new vtkCurve(effectivePoints, color, lineWidth);
     curve->addToRenderer(m_renderer);
     m_curves.append(curve);
     autoScaleIfNeeded();
@@ -1025,7 +1106,10 @@ QList<vtkMarker*> vtkPlotBase::getMarkers() const
 vtkSurface* vtkPlotBase::addSurface(const QVector<QVector3D> &points, int nx, int ny,
                                     const QColor &color, double opacity)
 {
-    vtkSurface *surface = new vtkSurface(points, nx, ny, color, opacity);
+    QVector<QVector3D> effectivePoints = points;
+    applyStretchFillIfNeeded(effectivePoints);
+
+    vtkSurface *surface = new vtkSurface(effectivePoints, nx, ny, color, opacity);
     surface->addToRenderer(m_renderer);
     m_surfaces.append(surface);
     autoScaleIfNeeded();
@@ -1093,10 +1177,26 @@ QList<vtkSurface*> vtkPlotBase::getSurfaces() const
 vtkHeatmap* vtkPlotBase::addHeatmapSurface(const QVector<QVector3D> &points, int nx, int ny,
                                             const QString &colorBarTitle)
 {
-    vtkHeatmap *heatmap = new vtkHeatmap(points, nx, ny, colorBarTitle);
+    QVector<QVector3D> effectivePoints = points;
+    double origYMin = 0.0, origYMax = 1.0;
+
+    if (m_autoScaleMode == AutoScaleMode::StretchFill) {
+        // 在归一化前记录原始 Y 范围（标量范围）
+        double origXMin, origXMax, origZMin, origZMax;
+        computePointsBounds(points, origXMin, origXMax, origYMin, origYMax, origZMin, origZMax);
+    }
+    applyStretchFillIfNeeded(effectivePoints);
+
+    vtkHeatmap *heatmap = new vtkHeatmap(effectivePoints, nx, ny, colorBarTitle);
     heatmap->setScalarBarActor(m_scalarBarActor);  // m_scalarBarActor 是 vtkSmartPointer
     heatmap->addToRenderer(m_renderer);
     m_heatmapSurfaces.append(heatmap);
+
+    // StretchFill 模式下重映射标量值到原始范围
+    if (m_autoScaleMode == AutoScaleMode::StretchFill) {
+        heatmap->remapScalarRange(origYMin, origYMax);
+    }
+
     autoScaleIfNeeded();
     heatmap->setContourBaseY(m_yMin);  // 投影到坐标系Y轴最小值（需在 autoScaleIfNeeded 后）
     updateScalarBar();
