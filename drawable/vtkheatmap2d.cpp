@@ -10,6 +10,7 @@
 #include <vtkChartLegend.h>
 #include <vtkAxis.h>
 #include <vtkTextProperty.h>
+#include <vtkTooltipItem.h>
 
 // ==================== 中文字体辅助 ====================
 
@@ -118,6 +119,16 @@ void vtkHeatmap2D::addToView(vtkContextView *view)
             applyChineseFont(axis->GetLabelProperties());
         }
     }
+
+    // 设置图表图例字体（标记组标签显示在此图例中）
+    if (m_chart->GetLegend()) {
+        applyChineseFont(m_chart->GetLegend()->GetLabelProperties());
+    }
+
+    // 设置悬浮提示文本字体
+    if (m_chart->GetTooltip()) {
+        applyChineseFont(m_chart->GetTooltip()->GetTextProperties());
+    }
 }
 
 void vtkHeatmap2D::removeFromView(vtkContextView *view)
@@ -189,6 +200,7 @@ void vtkHeatmap2D::setColorBarTitle(const QString &title)
             legend->GetBrush()->SetColorF(0.2, 0.2, 0.25, 1.0);
             legend->GetLabelProperties()->SetColor(1.0, 1.0, 1.0);
             legend->GetLabelProperties()->SetFontSize(14);
+            applyChineseFont(legend->GetLabelProperties());
         }
         render();
     }
@@ -246,6 +258,14 @@ vtkMarkerGroup2D* vtkHeatmap2D::addMarkerGroup(const QString &name,
     vtkMarkerGroup2D *group = new vtkMarkerGroup2D(name, color, style, size);
     group->attachToChart(m_chart);
     m_markerGroups.append(group);
+
+    // 重新应用图例字体（添加 plot 后可能重置）
+    if (m_chart->GetLegend()) {
+        applyChineseFont(m_chart->GetLegend()->GetLabelProperties());
+    }
+
+    // 显示图表图例（有标记组时自动显示）
+    m_chart->SetShowLegend(true);
     render();
     return group;
 }
