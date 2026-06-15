@@ -16,6 +16,7 @@
 
 class vtkContextView;
 class vtkMarkerGroup2D;
+class vtkTextProperty;
 
 /**
  * @brief vtkHeatmap2D 二维热力图类
@@ -198,6 +199,15 @@ private:
      * @brief 创建默认颜色传输函数
      */
     void createDefaultTransferFunction();
+
+    /**
+     * @brief 为文本属性设置支持中文显示的字体
+     *
+     * 设置微软雅黑字体，确保中文字符正常渲染。
+     *
+     * @param prop 目标文本属性对象。
+     */
+    static void applyChineseFont(vtkTextProperty *prop);
 
     QString m_id;                           ///< 唯一标识符
     QString m_name;                         ///< 图表名称

@@ -71,8 +71,6 @@ bool vtkPlot2D::event(QEvent *event)
 
 void vtkPlot2D::setupVTK()
 {
-    // 设置 VTK 所需的 OpenGL 表面格式（必须在创建 OpenGL 控件之前调用）
-    QSurfaceFormat::setDefaultFormat(QVTKOpenGLNativeWidget::defaultFormat());
 
     // 创建布局
     QVBoxLayout *layout = new QVBoxLayout(this);

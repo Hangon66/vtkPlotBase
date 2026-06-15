@@ -11,6 +11,16 @@
 #include <vtkAxis.h>
 #include <vtkTextProperty.h>
 
+// ==================== 中文字体辅助 ====================
+
+void vtkHeatmap2D::applyChineseFont(vtkTextProperty *prop)
+{
+    if (prop) {
+        prop->SetFontFamily(VTK_FONT_FILE);
+        prop->SetFontFile("C:/Windows/Fonts/msyh.ttc");  // 微软雅黑
+    }
+}
+
 // ==================== 构造函数与析构函数 ====================
 
 vtkHeatmap2D::vtkHeatmap2D(const QVector<double> &data, int rows, int cols,
@@ -41,6 +51,7 @@ vtkHeatmap2D::vtkHeatmap2D(const QVector<double> &data, int rows, int cols,
         m_chart->GetTitleProperties()->SetColor(1.0, 1.0, 1.0);
         m_chart->GetTitleProperties()->SetFontSize(20);
         m_chart->GetTitleProperties()->SetBold(1);
+        applyChineseFont(m_chart->GetTitleProperties());
     }
 
     // 设置颜色条标题与字体样式
@@ -52,14 +63,17 @@ vtkHeatmap2D::vtkHeatmap2D(const QVector<double> &data, int rows, int cols,
             // 颜色条标题字体
             legend->GetLabelProperties()->SetColor(1.0, 1.0, 1.0);
             legend->GetLabelProperties()->SetFontSize(14);
+            applyChineseFont(legend->GetLabelProperties());
             // 通过遍历子项找到内部 vtkAxis，设置刻度标签字体
             for (int i = 0; i < legend->GetNumberOfItems(); ++i) {
                 vtkAxis *legendAxis = vtkAxis::SafeDownCast(legend->GetItem(i));
                 if (legendAxis) {
                     legendAxis->GetTitleProperties()->SetColor(1.0, 1.0, 1.0);
                     legendAxis->GetTitleProperties()->SetFontSize(14);
+                    applyChineseFont(legendAxis->GetTitleProperties());
                     legendAxis->GetLabelProperties()->SetColor(1.0, 1.0, 1.0);
                     legendAxis->GetLabelProperties()->SetFontSize(12);
+                    applyChineseFont(legendAxis->GetLabelProperties());
                 }
             }
         }
@@ -98,8 +112,10 @@ void vtkHeatmap2D::addToView(vtkContextView *view)
             axis->GetTitleProperties()->SetColor(1.0, 1.0, 1.0);
             axis->GetTitleProperties()->SetFontSize(14);
             axis->GetTitleProperties()->SetBold(1);
+            applyChineseFont(axis->GetTitleProperties());
             axis->GetLabelProperties()->SetColor(1.0, 1.0, 1.0);
             axis->GetLabelProperties()->SetFontSize(12);
+            applyChineseFont(axis->GetLabelProperties());
         }
     }
 }
@@ -185,6 +201,7 @@ void vtkHeatmap2D::setChartTitle(const QString &title)
         m_chart->GetTitleProperties()->SetColor(1.0, 1.0, 1.0);
         m_chart->GetTitleProperties()->SetFontSize(20);
         m_chart->GetTitleProperties()->SetBold(1);
+        applyChineseFont(m_chart->GetTitleProperties());
         render();
     }
 }
@@ -198,6 +215,7 @@ void vtkHeatmap2D::setXAxisTitle(const QString &title)
             axis->GetTitleProperties()->SetColor(1.0, 1.0, 1.0);
             axis->GetTitleProperties()->SetFontSize(14);
             axis->GetTitleProperties()->SetBold(1);
+            applyChineseFont(axis->GetTitleProperties());
         }
         render();
     }
@@ -212,6 +230,7 @@ void vtkHeatmap2D::setYAxisTitle(const QString &title)
             axis->GetTitleProperties()->SetColor(1.0, 1.0, 1.0);
             axis->GetTitleProperties()->SetFontSize(14);
             axis->GetTitleProperties()->SetBold(1);
+            applyChineseFont(axis->GetTitleProperties());
         }
         render();
     }
