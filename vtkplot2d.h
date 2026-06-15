@@ -18,6 +18,10 @@ class vtkColorTransferFunction;
 
 // 前向声明 drawable 类
 class vtkHeatmap2D;
+class vtkMarkerGroup2D;
+
+// 标记样式枚举定义在 vtkmarkergroup2d.h 中
+#include "drawable/vtkmarkergroup2d.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -148,6 +152,53 @@ public:
      * @return QList<vtkHeatmap2D*> 热力图列表
      */
     QList<vtkHeatmap2D*> getHeatmap2Ds() const;
+
+    // ===== 标记组操作 =====
+
+    /**
+     * @brief 向指定热力图添加标记组
+     *
+     * @param heatmap 目标热力图
+     * @param name 标记组名称
+     * @param color 标记点颜色
+     * @param style 标记点样式
+     * @param size 标记点大小
+     * @return vtkMarkerGroup2D* 标记组指针
+     */
+    vtkMarkerGroup2D* addMarkerGroup(vtkHeatmap2D *heatmap,
+                                     const QString &name = "",
+                                     const QColor &color = Qt::white,
+                                     Marker2DStyle style = Marker2DStyle::Circle,
+                                     double size = 12.0);
+
+    /**
+     * @brief 向第一个热力图添加标记组（便捷方法）
+     *
+     * 当仅有一个热力图时可直接使用此方法，无需指定目标热力图。
+     *
+     * @param name 标记组名称
+     * @param color 标记点颜色
+     * @param style 标记点样式
+     * @param size 标记点大小
+     * @return vtkMarkerGroup2D* 标记组指针，无热力图时返回 nullptr
+     */
+    vtkMarkerGroup2D* addMarkerGroup(const QString &name = "",
+                                     const QColor &color = Qt::white,
+                                     Marker2DStyle style = Marker2DStyle::Circle,
+                                     double size = 12.0);
+
+    /**
+     * @brief 从指定热力图移除标记组
+     * @param heatmap 热力图
+     * @param group 标记组
+     */
+    void removeMarkerGroup(vtkHeatmap2D *heatmap, vtkMarkerGroup2D *group);
+
+    /**
+     * @brief 清除指定热力图的所有标记组
+     * @param heatmap 热力图
+     */
+    void clearMarkerGroups(vtkHeatmap2D *heatmap);
 
     // ===== 清除所有 =====
 

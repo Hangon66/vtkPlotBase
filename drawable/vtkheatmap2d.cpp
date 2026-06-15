@@ -1,4 +1,5 @@
 #include "vtkheatmap2d.h"
+#include "vtkmarkergroup2d.h"
 
 #include <vtkContextView.h>
 #include <vtkRenderWindow.h>
@@ -67,6 +68,9 @@ vtkHeatmap2D::vtkHeatmap2D(const QVector<double> &data, int rows, int cols,
 
 vtkHeatmap2D::~vtkHeatmap2D()
 {
+    // 清理标记组
+    clearMarkerGroups();
+
     if (m_view) {
         removeFromView(m_view);
     }
@@ -211,6 +215,45 @@ void vtkHeatmap2D::setYAxisTitle(const QString &title)
         }
         render();
     }
+}
+
+// ==================== 标记组操作 ====================
+
+vtkMarkerGroup2D* vtkHeatmap2D::addMarkerGroup(const QString &name,
+                                               const QColor &color,
+                                               Marker2DStyle style,
+                                               double size)
+{
+    vtkMarkerGroup2D *group = new vtkMarkerGroup2D(name, color, style, size);
+    group->attachToChart(m_chart);
+    m_markerGroups.append(group);
+    render();
+    return group;
+}
+
+void vtkHeatmap2D::removeMarkerGroup(vtkMarkerGroup2D *group)
+{
+    if (group) {
+        group->detachFromChart(m_chart);
+        m_markerGroups.removeAll(group);
+        delete group;
+        render();
+    }
+}
+
+void vtkHeatmap2D::clearMarkerGroups()
+{
+    for (auto group : m_markerGroups) {
+        group->detachFromChart(m_chart);
+        delete group;
+    }
+    m_markerGroups.clear();
+    render();
+}
+
+QList<vtkMarkerGroup2D*> vtkHeatmap2D::getMarkerGroups() const
+{
+    return m_markerGroups;
 }
 
 // ==================== 私有方法 ====================

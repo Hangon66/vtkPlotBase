@@ -3,9 +3,11 @@
 
 // drawable 类
 #include "drawable/vtkheatmap2d.h"
+#include "drawable/vtkmarkergroup2d.h"
 
 // VTK Qt 头文件
 #include <QVTKOpenGLNativeWidget.h>
+#include <QSurfaceFormat>
 #include <vtkGenericOpenGLRenderWindow.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderer.h>
@@ -69,6 +71,9 @@ bool vtkPlot2D::event(QEvent *event)
 
 void vtkPlot2D::setupVTK()
 {
+    // 设置 VTK 所需的 OpenGL 表面格式（必须在创建 OpenGL 控件之前调用）
+    QSurfaceFormat::setDefaultFormat(QVTKOpenGLNativeWidget::defaultFormat());
+
     // 创建布局
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -170,6 +175,45 @@ void vtkPlot2D::clearAllHeatmap2D()
 QList<vtkHeatmap2D*> vtkPlot2D::getHeatmap2Ds() const
 {
     return m_heatmap2Ds;
+}
+
+// ==================== 标记组操作 ====================
+
+vtkMarkerGroup2D* vtkPlot2D::addMarkerGroup(vtkHeatmap2D *heatmap,
+                                             const QString &name,
+                                             const QColor &color,
+                                             Marker2DStyle style,
+                                             double size)
+{
+    if (heatmap) {
+        return heatmap->addMarkerGroup(name, color, style, size);
+    }
+    return nullptr;
+}
+
+vtkMarkerGroup2D* vtkPlot2D::addMarkerGroup(const QString &name,
+                                             const QColor &color,
+                                             Marker2DStyle style,
+                                             double size)
+{
+    if (!m_heatmap2Ds.isEmpty()) {
+        return m_heatmap2Ds.first()->addMarkerGroup(name, color, style, size);
+    }
+    return nullptr;
+}
+
+void vtkPlot2D::removeMarkerGroup(vtkHeatmap2D *heatmap, vtkMarkerGroup2D *group)
+{
+    if (heatmap && group) {
+        heatmap->removeMarkerGroup(group);
+    }
+}
+
+void vtkPlot2D::clearMarkerGroups(vtkHeatmap2D *heatmap)
+{
+    if (heatmap) {
+        heatmap->clearMarkerGroups();
+    }
 }
 
 // ==================== 清除所有 ====================

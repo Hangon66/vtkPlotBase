@@ -16,6 +16,7 @@ LIBS += -lvtkCommonExecutionModel-9.6
 LIBS += -lvtkCommonMath-9.6
 LIBS += -lvtkCommonMisc-9.6
 LIBS += -lvtkCommonTransforms-9.6
+LIBS += -lvtkCommonColor-9.6
 LIBS += -lvtkRenderingCore-9.6
 LIBS += -lvtkRenderingOpenGL2-9.6
 LIBS += -lvtkRenderingAnnotation-9.6
@@ -62,7 +63,8 @@ SOURCES += \
     drawable/vtkmarker.cpp \
     drawable/vtksurface.cpp \
     drawable/vtkheatmap.cpp \
-    drawable/vtkheatmap2d.cpp
+    drawable/vtkheatmap2d.cpp \
+    drawable/vtkmarkergroup2d.cpp
 
 HEADERS += \
     vtkplotbase.h \
@@ -73,7 +75,8 @@ HEADERS += \
     drawable/vtkmarker.h \
     drawable/vtksurface.h \
     drawable/vtkheatmap.h \
-    drawable/vtkheatmap2d.h
+    drawable/vtkheatmap2d.h \
+    drawable/vtkmarkergroup2d.h
 
 FORMS += \
     vtkplotbase.ui \

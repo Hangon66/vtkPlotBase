@@ -2,6 +2,7 @@
 #define VTKHEATMAP2D_H
 
 #include "vtkchartdrawable.h"
+#include "vtkmarkergroup2d.h"
 #include <QString>
 #include <QColor>
 #include <QUuid>
@@ -14,6 +15,7 @@
 #include <vtkChartHistogram2D.h>
 
 class vtkContextView;
+class vtkMarkerGroup2D;
 
 /**
  * @brief vtkHeatmap2D 二维热力图类
@@ -142,6 +144,41 @@ public:
      */
     void setYAxisTitle(const QString &title);
 
+    // ===== 标记组操作 =====
+
+    /**
+     * @brief 添加标记组到热力图
+     *
+     * 创建标记组并附着到当前图表，标记组与热力图共享同一坐标系统。
+     *
+     * @param name 标记组名称，用于图例显示
+     * @param color 标记点颜色
+     * @param style 标记点样式，默认圆形
+     * @param size 标记点大小，默认 12.0
+     * @return vtkMarkerGroup2D* 标记组对象指针
+     */
+    vtkMarkerGroup2D* addMarkerGroup(const QString &name = "",
+                                     const QColor &color = Qt::white,
+                                     Marker2DStyle style = Marker2DStyle::Circle,
+                                     double size = 12.0);
+
+    /**
+     * @brief 移除指定标记组
+     * @param group 标记组对象
+     */
+    void removeMarkerGroup(vtkMarkerGroup2D *group);
+
+    /**
+     * @brief 清除所有标记组
+     */
+    void clearMarkerGroups();
+
+    /**
+     * @brief 获取所有标记组
+     * @return QList<vtkMarkerGroup2D*> 标记组列表
+     */
+    QList<vtkMarkerGroup2D*> getMarkerGroups() const;
+
     /**
      * @brief 获取图表对象
      * @return vtkChartHistogram2D* 图表指针
@@ -181,6 +218,11 @@ private:
     vtkSmartPointer<vtkImageData> m_imageData;              ///< 图像数据
     vtkSmartPointer<vtkColorTransferFunction> m_transferFunction; ///< 颜色传输函数
     vtkSmartPointer<vtkChartHistogram2D> m_chart;           ///< 二维直方图图表
+
+    /**
+     * @brief 标记组列表
+     */
+    QList<vtkMarkerGroup2D*> m_markerGroups;
 
     /**
      * @brief 上下文视图引用（不拥有）
