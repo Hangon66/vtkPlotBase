@@ -71,6 +71,15 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
 
     /**
+     * @brief 键盘事件处理
+     *
+     * 按 R 键重置所有图表的坐标轴范围，恢复默认视图。
+     *
+     * @param event 键盘事件对象
+     */
+    void keyPressEvent(QKeyEvent *event) override;
+
+    /**
      * @brief 通用事件处理
      * @param event 事件对象
      * @return 事件是否被处理

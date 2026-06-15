@@ -21,6 +21,7 @@
 
 #include <QShowEvent>
 #include <QWheelEvent>
+#include <QKeyEvent>
 
 // ==================== 构造函数与析构函数 ====================
 
@@ -30,6 +31,7 @@ vtkPlot2D::vtkPlot2D(QWidget *parent)
     , m_vtkWidget(nullptr)
 {
     ui->setupUi(this);
+    setFocusPolicy(Qt::StrongFocus);  // 确保可接收键盘事件
     setupVTK();
 }
 
@@ -51,6 +53,21 @@ void vtkPlot2D::wheelEvent(QWheelEvent *event)
 {
     // 接受事件，阻止向上传播到 QScrollArea
     event->accept();
+}
+
+void vtkPlot2D::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_R) {
+        // 重置所有图表坐标轴范围，恢复默认视图
+        for (auto heatmap : m_heatmap2Ds) {
+            if (heatmap->chart()) {
+                heatmap->chart()->RecalculateBounds();
+            }
+        }
+        render();
+        return;
+    }
+    QWidget::keyPressEvent(event);
 }
 
 bool vtkPlot2D::event(QEvent *event)
