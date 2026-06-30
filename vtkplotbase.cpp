@@ -28,6 +28,9 @@
 #include <vtkProperty.h>
 #include <vtkTextProperty.h>
 #include <vtkTextActor.h>
+#include <vtkPointPicker.h>
+#include <vtkPointData.h>
+#include <vtkDataArray.h>
 
 #include <limits>
 #include <algorithm>
@@ -75,6 +78,70 @@ void vtkPlotBaseInteractorStyle::OnKeyPress()
     }
 }
 
+void vtkPlotBaseInteractorStyle::OnMouseMove()
+{
+    // 先调用基类处理正常的鼠标交互（旋转、缩放等）
+    vtkInteractorStyleTrackballCamera::OnMouseMove();
+
+    // 悬浮数据显示
+    if (m_plotBase && m_plotBase->isHoverDisplayEnabled() && m_plotBase->m_hoverTextActor && m_plotBase->m_pointPicker) {
+        vtkRenderWindowInteractor* interactor = this->Interactor;
+        if (!interactor) return;
+
+        int* eventPos = interactor->GetEventPosition();
+        int* winSize = interactor->GetSize();
+        if (!winSize || winSize[0] <= 0 || winSize[1] <= 0) return;
+
+        // 使用点拾取器拾取鼠标位置下方的最近数据点
+        m_plotBase->m_pointPicker->Pick(eventPos[0], eventPos[1], 0, m_plotBase->renderer());
+
+        vtkIdType pointId = m_plotBase->m_pointPicker->GetPointId();
+        if (pointId >= 0) {
+            vtkDataSet* dataSet = m_plotBase->m_pointPicker->GetDataSet();
+            if (!dataSet) {
+                m_plotBase->m_hoverTextActor->SetVisibility(0);
+                m_plotBase->render();
+                return;
+            }
+
+            // 获取拾取点的世界坐标
+            double pickedPos[3];
+            dataSet->GetPoint(pointId, pickedPos);
+
+            // 构建显示文本
+            QString text = QString("X: %1  Y: %2  Z: %3")
+                .arg(pickedPos[0], 0, 'g', 6)
+                .arg(pickedPos[1], 0, 'g', 6)
+                .arg(pickedPos[2], 0, 'g', 6);
+
+            // 如果点数据中包含标量值（如热力图的颜色映射值），追加显示
+            vtkDataArray* scalars = dataSet->GetPointData()->GetScalars();
+            if (scalars) {
+                double scalarVal = scalars->GetTuple1(pointId);
+                text += QString("\nValue: %1").arg(scalarVal, 0, 'g', 6);
+            }
+
+            m_plotBase->m_hoverTextActor->SetInput(text.toUtf8().constData());
+
+            // 将鼠标显示坐标转换为归一化视口坐标，并偏移显示文本位置
+            double viewX = static_cast<double>(eventPos[0]) / winSize[0];
+            double viewY = static_cast<double>(eventPos[1]) / winSize[1];
+            double textX = viewX + 0.02;
+            double textY = viewY + 0.02;
+            // 防止文本超出视口边界
+            if (textX > 0.80) textX = viewX - 0.20;
+            if (textY > 0.93) textY = viewY - 0.08;
+
+            m_plotBase->m_hoverTextActor->GetPositionCoordinate()->SetValue(textX, textY);
+            m_plotBase->m_hoverTextActor->SetVisibility(1);
+        } else {
+            // 未拾取到任何点，隐藏文本
+            m_plotBase->m_hoverTextActor->SetVisibility(0);
+        }
+        m_plotBase->render();
+    }
+}
+
 // ==================== 构造函数与析构函数 ====================
 
 vtkPlotBase::vtkPlotBase(QWidget *parent)
@@ -95,6 +162,8 @@ vtkPlotBase::vtkPlotBase(QWidget *parent)
     , m_titleVisible(false)
     , m_cameraInitialized(false)
     , m_autoColorIndex(0)
+    , m_hoverDisplayEnabled(false)
+    , m_hoverTolerance(0.02)
 {
     ui->setupUi(this);
     setupVTK();
@@ -155,6 +224,9 @@ void vtkPlotBase::setupVTK()
 
     // 创建标题
     createTitle();
+
+    // 创建悬浮显示组件
+    createHoverDisplay();
 
     // 设置相机
     m_renderer->ResetCamera();
@@ -277,6 +349,29 @@ void vtkPlotBase::createTitle()
     m_renderer->AddViewProp(m_titleActor);
 }
 
+void vtkPlotBase::createHoverDisplay()
+{
+    // 创建悬浮信息文本演员
+    m_hoverTextActor = vtkSmartPointer<vtkTextActor>::New();
+    m_hoverTextActor->SetInput("");
+
+    vtkTextProperty* textProp = m_hoverTextActor->GetTextProperty();
+    textProp->SetFontSize(12);
+    textProp->SetColor(1.0, 1.0, 1.0);
+    textProp->SetBackgroundColor(0.05, 0.05, 0.1);
+    textProp->SetBackgroundOpacity(0.75);
+    textProp->SetOpacity(1.0);
+
+    m_hoverTextActor->GetPositionCoordinate()->SetCoordinateSystemToNormalizedViewport();
+    m_hoverTextActor->GetPositionCoordinate()->SetValue(0.0, 0.0);
+    m_hoverTextActor->SetVisibility(0);
+    m_renderer->AddViewProp(m_hoverTextActor);
+
+    // 创建点拾取器
+    m_pointPicker = vtkSmartPointer<vtkPointPicker>::New();
+    m_pointPicker->SetTolerance(m_hoverTolerance);
+}
+
 void vtkPlotBase::setTitle(const QString &title)
 {
     m_titleActor->SetInput(title.toUtf8().constData());
@@ -302,6 +397,32 @@ void vtkPlotBase::setTitleFontSize(int size)
 {
     m_titleActor->GetTextProperty()->SetFontSize(size);
     render();
+}
+
+// ==================== 悬浮数据显示 ====================
+
+void vtkPlotBase::setHoverDisplayEnabled(bool enabled)
+{
+    m_hoverDisplayEnabled = enabled;
+    if (m_hoverTextActor) {
+        if (!enabled) {
+            m_hoverTextActor->SetVisibility(0);
+        }
+    }
+    render();
+}
+
+bool vtkPlotBase::isHoverDisplayEnabled() const
+{
+    return m_hoverDisplayEnabled;
+}
+
+void vtkPlotBase::setHoverTolerance(double tolerance)
+{
+    m_hoverTolerance = tolerance;
+    if (m_pointPicker) {
+        m_pointPicker->SetTolerance(tolerance);
+    }
 }
 
 void vtkPlotBase::updateLegend()

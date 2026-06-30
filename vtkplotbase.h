@@ -15,12 +15,15 @@
 #include <vtkCallbackCommand.h>
 #include <vtkInteractorStyleTrackballCamera.h>
 #include <vtkLegendBoxActor.h>
+#include <vtkTextProperty.h>
+#include <vtkPointPicker.h>
 
 // 前向声明
 class QVTKOpenGLNativeWidget;
 class vtkRenderWindow;
 class vtkRenderWindowInteractor;
 class vtkTextActor;
+class vtkPointPicker;
 
 // 前向声明新的类
 class vtkDrawable;
@@ -61,6 +64,7 @@ public:
     void SetPlotBase(class vtkPlotBase* plot) { m_plotBase = plot; }
     
     void OnKeyPress() override;
+    void OnMouseMove() override;
 
 private:
     class vtkPlotBase* m_plotBase = nullptr;
@@ -166,6 +170,33 @@ public:
      * @param size 字号大小（默认 18）。
      */
     void setTitleFontSize(int size);
+
+    // ===== 悬浮数据显示 =====
+    /**
+     * @brief 设置鼠标悬浮数据显示的启用状态。
+     *
+     * 启用后，鼠标在场景内移动时会自动拾取最近的数据点，
+     * 并在鼠标附近显示坐标及标量值信息。
+     *
+     * @param enabled true 启用悬浮显示，false 禁用。
+     */
+    void setHoverDisplayEnabled(bool enabled);
+
+    /**
+     * @brief 获取鼠标悬浮数据显示的启用状态。
+     * @return bool true 表示已启用，false 表示已禁用。
+     */
+    bool isHoverDisplayEnabled() const;
+
+    /**
+     * @brief 设置悬浮拾取的容差值。
+     *
+     * 容差越大，鼠标离数据点越远也能被拾取到；容差越小则要求越精确。
+     * 默认值为 0.02。
+     *
+     * @param tolerance 拾取容差值（世界坐标单位）。
+     */
+    void setHoverTolerance(double tolerance);
 
     // ===== 曲线操作（委托给 vtkCurve）=====
     vtkCurve* addCurve(const QVector<QVector3D> &points, const QColor &color, double lineWidth);    // 添加曲线
@@ -305,12 +336,34 @@ private:
     int m_autoColorIndex;
     QColor getNextAutoColor();
 
+    // 悬浮数据显示
+    /**
+     * @brief 悬浮信息文本演员，在鼠标附近显示拾取到的数据。
+     */
+    vtkSmartPointer<vtkTextActor> m_hoverTextActor;
+
+    /**
+     * @brief 点拾取器，用于在鼠标移动时拾取最近的数据点。
+     */
+    vtkSmartPointer<vtkPointPicker> m_pointPicker;
+
+    /**
+     * @brief 悬浮显示是否启用的标志位。
+     */
+    bool m_hoverDisplayEnabled;
+
+    /**
+     * @brief 悬浮拾取容差值（世界坐标单位）。
+     */
+    double m_hoverTolerance;
+
     // 初始化和配置
     void setupVTK();                                        // 初始化 VTK
     void createAxes();                                      // 创建坐标轴
     void createLegend();                                    // 创建图例
     void createScalarBar();                                 // 创建颜色条
     void createTitle();                                     // 创建标题
+    void createHoverDisplay();                               // 创建悬浮显示组件
     void saveDefaultCamera();                               // 保存默认相机参数
     
     // 更新方法
