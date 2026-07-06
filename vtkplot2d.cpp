@@ -5,6 +5,8 @@
 #include "drawable/vtkheatmap2d.h"
 #include "drawable/vtkhistogram.h"
 #include "drawable/vtkmarkergroup2d.h"
+#include "drawable/vtkscatterseries.h"
+#include "drawable/vtklineseries.h"
 
 // VTK Qt 头文件
 #include <QVTKOpenGLNativeWidget.h>
@@ -25,6 +27,7 @@
 #include <vtkChartLegend.h>
 #include <vtkPlotArea.h>
 #include <vtkPlotLine.h>
+#include <vtkPlotPoints.h>
 #include <vtkPen.h>
 #include <vtkTable.h>
 #include <vtkFloatArray.h>
@@ -127,6 +130,9 @@ void vtkPlot2D::keyPressEvent(QKeyEvent *event)
         }
         if (m_histogramChart) {
             m_histogramChart->RecalculateBounds();
+        }
+        if (m_scatterChart) {
+            m_scatterChart->RecalculateBounds();
         }
         render();
         return;
@@ -397,6 +403,8 @@ void vtkPlot2D::clearAll()
 {
     clearAllHeatmap2D();
     clearAllHistograms();
+    clearAllScatterSeries();
+    clearAllLineSeries();
 }
 
 // ==================== 概率分布直方图操作 ====================
@@ -549,4 +557,111 @@ void vtkPlot2D::render()
     if (m_vtkWidget && m_vtkWidget->renderWindow()) {
         m_vtkWidget->renderWindow()->Render();
     }
+}
+
+// ==================== 散点图操作 ====================
+
+vtkScatterSeries* vtkPlot2D::addScatterSeries(const QVector<QPointF> &points,
+                                               const QColor &color,
+                                               Marker2DStyle style,
+                                               double size,
+                                               const QString &name)
+{
+    // 首次调用时创建共享图表并配置样式
+    if (!m_scatterChart) {
+        m_scatterChart = vtkSmartPointer<vtkChartXY>::New();
+        m_contextView->GetScene()->AddItem(m_scatterChart);
+
+        // 配置坐标轴字体（白色 + 中文字体）
+        for (int i = 0; i < 4; ++i) {
+            vtkAxis *axis = m_scatterChart->GetAxis(i);
+            if (axis) {
+                axis->GetTitleProperties()->SetColor(1.0, 1.0, 1.0);
+                axis->GetTitleProperties()->SetFontSize(14);
+                axis->GetTitleProperties()->SetBold(1);
+                vtkTextProperty *tp = axis->GetTitleProperties();
+                tp->SetFontFamily(VTK_FONT_FILE);
+                tp->SetFontFile("C:/Windows/Fonts/msyh.ttc");
+                axis->GetLabelProperties()->SetColor(1.0, 1.0, 1.0);
+                axis->GetLabelProperties()->SetFontSize(12);
+                vtkTextProperty *lp = axis->GetLabelProperties();
+                lp->SetFontFamily(VTK_FONT_FILE);
+                lp->SetFontFile("C:/Windows/Fonts/msyh.ttc");
+            }
+        }
+
+        // 默认轴标题
+        m_scatterChart->GetAxis(vtkAxis::BOTTOM)->SetTitle("X");
+        m_scatterChart->GetAxis(vtkAxis::LEFT)->SetTitle("Y");
+
+        // 默认图表标题
+        m_scatterChart->SetTitle("Scatter Plot");
+        m_scatterChart->GetTitleProperties()->SetColor(1.0, 1.0, 1.0);
+        m_scatterChart->GetTitleProperties()->SetFontSize(18);
+        m_scatterChart->GetTitleProperties()->SetBold(1);
+        vtkTextProperty *ttp = m_scatterChart->GetTitleProperties();
+        ttp->SetFontFamily(VTK_FONT_FILE);
+        ttp->SetFontFile("C:/Windows/Fonts/msyh.ttc");
+
+        // 显示图例
+        m_scatterChart->SetShowLegend(true);
+        if (m_scatterChart->GetLegend()) {
+            vtkTextProperty *legendProp = m_scatterChart->GetLegend()->GetLabelProperties();
+            legendProp->SetFontFamily(VTK_FONT_FILE);
+            legendProp->SetFontFile("C:/Windows/Fonts/msyh.ttc");
+        }
+    }
+
+    vtkScatterSeries *series = new vtkScatterSeries(m_scatterChart, points, color, style, size, name);
+    series->addToView(m_contextView);
+    m_scatterSeries.append(series);
+    render();
+    return series;
+}
+
+vtkLineSeries* vtkPlot2D::addLineSeries(const QVector<QPointF> &points,
+                                          const QColor &color,
+                                          double width,
+                                          const QString &name)
+{
+    // 确保共享图表已创建（复用散点图表创建逻辑）
+    if (!m_scatterChart) {
+        addScatterSeries({}, Qt::transparent, Marker2DStyle::None, 0.0, "");
+    }
+
+    vtkLineSeries *series = new vtkLineSeries(m_scatterChart, points, color, width, name);
+    series->addToView(m_contextView);
+    m_lineSeries.append(series);
+    render();
+    return series;
+}
+
+void vtkPlot2D::clearAllScatterSeries()
+{
+    for (auto *series : m_scatterSeries) {
+        delete series;
+    }
+    m_scatterSeries.clear();
+
+    // 若线条也清空，则移除共享图表
+    if (m_lineSeries.isEmpty() && m_scatterChart) {
+        m_contextView->GetScene()->RemoveItem(m_scatterChart);
+        m_scatterChart = nullptr;
+    }
+    render();
+}
+
+void vtkPlot2D::clearAllLineSeries()
+{
+    for (auto *series : m_lineSeries) {
+        delete series;
+    }
+    m_lineSeries.clear();
+
+    // 若散点也清空，则移除共享图表
+    if (m_scatterSeries.isEmpty() && m_scatterChart) {
+        m_contextView->GetScene()->RemoveItem(m_scatterChart);
+        m_scatterChart = nullptr;
+    }
+    render();
 }

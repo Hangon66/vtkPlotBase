@@ -1,6 +1,6 @@
 /**
  * @file main.cpp
- * @brief 主程序 - 二维热力图标记点示例
+ * @brief 主程序 - 概率分布直方图示例
  */
 
 #include <vtkAutoInit.h>
@@ -14,49 +14,56 @@ VTK_MODULE_INIT(vtkRenderingFreeType)
 #include <QVTKOpenGLNativeWidget.h>
 
 #include "vtkplot2d.h"
-#include "drawable/vtkheatmap2d.h"
-#include "drawable/vtkmarkergroup2d.h"
-#include "vtkplotbase.h"
-#include "drawable/vtkheatmap.h"
+#include "drawable/vtkhistogram.h"
 #include <cmath>
+#include <cstdlib>
+#include <ctime>
 
 int main(int argc, char *argv[])
 {
-
     QApplication app(argc, argv);
 
-    vtkPlotBase w;
-    w.setWindowTitle("热力图示例 - Heatmap Surface");
-    w.resize(800, 600);
-    
-    // 设置坐标轴标题（曲面在ZX平面，高度为Y）
-    w.setAxisTitles("X", "Height", "Z");
-    w.setHoverDisplayEnabled(true);
-    w.setHoverTolerance(0.01);
+    // ==================== 示例：概率分布直方图（双分布对比） ====================
+    vtkPlot2D histWindow;
+    histWindow.setWindowTitle("概率分布直方图 - Histogram");
+    histWindow.resize(800, 600);
 
-    
-    // ==================== 示例1：Sinc函数曲面 ====================
-    // sinc(r) = sin(r)/r，经典的信号处理函数
-    const int nx = 60;
-    const int nz = 60;
-    QVector<QVector3D> sincPoints;
-    
-    for (int j = 0; j < nz; ++j) {
-        for (int i = 0; i < nx; ++i) {
-            double x = (i - nx/2.0) * 0.15;
-            double z = (j - nz/2.0) * 0.15;
-            double r = sqrt(x*x + z*z);
-            double y = (r < 0.01) ? 1.0 : sin(r) / r;  // sinc函数
-            sincPoints.append(QVector3D(x, y, z));
-        }
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
+
+    // 生成正态分布数据（Box-Muller 变换）
+    QVector<double> normalData;
+    normalData.reserve(10000);
+    for (int i = 0; i < 5000; ++i) {
+        double u1 = (std::rand() + 1.0) / (RAND_MAX + 2.0);
+        double u2 = (std::rand() + 1.0) / (RAND_MAX + 2.0);
+        double z0 = std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * M_PI * u2);
+        double z1 = std::sqrt(-2.0 * std::log(u1)) * std::sin(2.0 * M_PI * u2);
+        normalData.append(z0);
+        normalData.append(z1);
     }
-    
-    // 添加热力图曲面，Y值（高度）映射为颜色
-    vtkHeatmap* sinc = w.addHeatmapSurface(sincPoints, nx, nz, "Sinc(r)");
-    
-    // 设置等高线数量
-    sinc->setContourCount(8);
 
-    w.show();
+    // 生成均匀分布数据 [-3, 3]
+    QVector<double> uniformData;
+    uniformData.reserve(10000);
+    for (int i = 0; i < 10000; ++i) {
+        uniformData.append(-3.0 + 6.0 * std::rand() / RAND_MAX);
+    }
+
+    // 添加正态分布直方图：50 分箱，青色半透明
+    vtkHistogram *histNormal = histWindow.addHistogram(normalData, 50,
+        QColor(0, 255, 255, 120), "N(0,1)");
+    histNormal->setTitle("概率分布对比");
+    histNormal->setXAxisTitle("数值");
+    histNormal->setYAxisTitle("频次");
+
+    // 添加均匀分布直方图：50 分箱，红色半透明
+    histWindow.addHistogram(uniformData, 50,
+        QColor(255, 80, 80, 120), "U[-3,3]");
+
+    // 添加 x=0 处的红色虚线参考线
+    histWindow.addHistogramRefLine(0.0, QColor(255, 0, 0), 2.0, "x=0");
+
+    histWindow.show();
+
     return app.exec();
 }

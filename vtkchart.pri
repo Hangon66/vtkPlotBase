@@ -79,7 +79,9 @@ SOURCES += \
     $$VTKCHART_DIR/drawable/vtkheatmap.cpp \
     $$VTKCHART_DIR/drawable/vtkheatmap2d.cpp \
     $$VTKCHART_DIR/drawable/vtkhistogram.cpp \
-    $$VTKCHART_DIR/drawable/vtkmarkergroup2d.cpp
+    $$VTKCHART_DIR/drawable/vtkmarkergroup2d.cpp \
+    $$VTKCHART_DIR/drawable/vtkscatterseries.cpp \
+    $$VTKCHART_DIR/drawable/vtklineseries.cpp
 
 HEADERS += \
     $$VTKCHART_DIR/vtkplotbase.h \
@@ -92,7 +94,9 @@ HEADERS += \
     $$VTKCHART_DIR/drawable/vtkheatmap.h \
     $$VTKCHART_DIR/drawable/vtkheatmap2d.h \
     $$VTKCHART_DIR/drawable/vtkhistogram.h \
-    $$VTKCHART_DIR/drawable/vtkmarkergroup2d.h
+    $$VTKCHART_DIR/drawable/vtkmarkergroup2d.h \
+    $$VTKCHART_DIR/drawable/vtkscatterseries.h \
+    $$VTKCHART_DIR/drawable/vtklineseries.h
 
 FORMS += \
     $$VTKCHART_DIR/vtkplotbase.ui \

@@ -23,6 +23,8 @@ class vtkTextProperty;
 class vtkHeatmap2D;
 class vtkHistogram;
 class vtkMarkerGroup2D;
+class vtkScatterSeries;
+class vtkLineSeries;
 
 // 标记样式枚举定义在 vtkmarkergroup2d.h 中
 #include "drawable/vtkmarkergroup2d.h"
@@ -289,6 +291,54 @@ public:
                               double width = 2.0,
                               const QString &label = "");
 
+    // ===== 散点图操作 =====
+
+    /**
+     * @brief 添加散点序列
+     *
+     * 在共享的散点图表中添加一组散点。
+     * 首次调用时自动创建共享 vtkChartXY 并配置坐标轴样式。
+     *
+     * @param points 坐标点列表
+     * @param color 标记点颜色（默认青色）
+     * @param style 标记点样式（默认圆形）
+     * @param size 标记点大小（默认 10.0）
+     * @param name 序列名称（用于图例显示）
+     * @return vtkScatterSeries* 散点序列指针
+     */
+    vtkScatterSeries* addScatterSeries(const QVector<QPointF> &points,
+                                       const QColor &color = Qt::cyan,
+                                       Marker2DStyle style = Marker2DStyle::Circle,
+                                       double size = 10.0,
+                                       const QString &name = "");
+
+    /**
+     * @brief 添加线条序列
+     *
+     * 在共享的散点图表中添加一条折线。
+     * 可与散点序列叠加显示。
+     *
+     * @param points 坐标点列表（按顺序连线）
+     * @param color 线条颜色（默认白色）
+     * @param width 线条宽度（默认 2.0）
+     * @param name 序列名称（用于图例显示）
+     * @return vtkLineSeries* 线条序列指针
+     */
+    vtkLineSeries* addLineSeries(const QVector<QPointF> &points,
+                                  const QColor &color = Qt::white,
+                                  double width = 2.0,
+                                  const QString &name = "");
+
+    /**
+     * @brief 清除所有散点序列
+     */
+    void clearAllScatterSeries();
+
+    /**
+     * @brief 清除所有线条序列
+     */
+    void clearAllLineSeries();
+
     // ===== 清除所有 =====
 
     /**
@@ -319,6 +369,10 @@ private:
     QList<vtkHeatmap2D*> m_heatmap2Ds;                           ///< 二维热力图列表
     QList<vtkHistogram*> m_histograms;                            ///< 概率分布直方图序列列表
     vtkSmartPointer<vtkChartXY> m_histogramChart;                   ///< 共享图表（vtkChartXY，包含所有面积图）
+
+    QList<vtkScatterSeries*> m_scatterSeries;                       ///< 散点序列列表
+    QList<vtkLineSeries*> m_lineSeries;                             ///< 线条序列列表
+    vtkSmartPointer<vtkChartXY> m_scatterChart;                     ///< 散点图共享图表
 
     // 初始化方法
     void setupVTK();                                             ///< 初始化 VTK
