@@ -274,6 +274,7 @@ private:
     QVTKOpenGLNativeWidget *m_vtkWidget;                    // VTK Qt 控件
     QWidget *m_overlayWindow;                               // VTK 独立顶层窗口（不参与主窗口 RHI 合成）
     QTimer *m_syncTimer;                                    // 位置同步定时器
+    QSize m_lastVtkSize;                                    // 上一次 VTK 控件尺寸（去重 resize）
     vtkSmartPointer<vtkRenderer> m_renderer;                // 渲染器
     vtkSmartPointer<vtkCubeAxesActor> m_cubeAxesActor;      // 三维坐标轴演员
     vtkSmartPointer<vtkLegendBoxActor> m_legendActor;       // 图例演员

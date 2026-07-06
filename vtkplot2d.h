@@ -234,7 +234,8 @@ private:
     // VTK 组件
     QVTKOpenGLNativeWidget *m_vtkWidget;                        ///\< VTK Qt 控件
     QWidget *m_overlayWindow;                                   ///\< VTK 独立顶层窗口（不参与主窗口 RHI 合成）
-    QTimer *m_syncTimer;                                        ///\< 位置同步定时器
+    QTimer *m_syncTimer;                                        ///< 位置同步定时器
+    QSize m_lastVtkSize;                                        ///< 上一次 VTK 控件尺寸（去重 resize）
     vtkSmartPointer<vtkContextView> m_contextView;               ///< 上下文视图
 
     // 对象集合

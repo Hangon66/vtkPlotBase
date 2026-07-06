@@ -195,10 +195,9 @@ void vtkPlot2D::syncWindow()
     QSize widgetSize = size();
 
     // 仅在控件尺寸真正变化时才调整 VTK 控件
-    static QSize lastVtkSize;
-    if (widgetSize != lastVtkSize) {
+    if (widgetSize != m_lastVtkSize) {
         m_vtkWidget->setGeometry(0, 0, widgetSize.width(), widgetSize.height());
-        lastVtkSize = widgetSize;
+        m_lastVtkSize = widgetSize;
     }
 
     // 处理 QScrollArea 场景：裁剪到可视区域
