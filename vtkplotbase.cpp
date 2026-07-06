@@ -40,6 +40,9 @@
 #include <QtGlobal>
 #include <QShowEvent>
 #include <QWheelEvent>
+#include <QMoveEvent>
+#include <QResizeEvent>
+#include <QScrollArea>
 
 // ==================== 自定义交互器样式 ====================
 
@@ -171,8 +174,13 @@ vtkPlotBase::vtkPlotBase(QWidget *parent)
 
 vtkPlotBase::~vtkPlotBase()
 {
+    // 停止同步定时器，避免在析构过程中访问已释放对象
+    if (m_syncTimer)
+        m_syncTimer->stop();
     // 清除所有对象
     clearAll();
+    // overlay 无父对象，需显式删除
+    delete m_overlayWindow;
     delete ui;
 }
 
@@ -180,8 +188,122 @@ vtkPlotBase::~vtkPlotBase()
 void vtkPlotBase::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
+
+    // 首次显示时安装事件过滤器到父级 QScrollArea，捕获滚动事件即时同步
+    static bool filterInstalled = false;
+    if (!filterInstalled) {
+        QWidget *p = parentWidget();
+        while (p) {
+            if (QScrollArea *sa = qobject_cast<QScrollArea*>(p)) {
+                sa->installEventFilter(this);
+                sa->viewport()->installEventFilter(this);
+                filterInstalled = true;
+                break;
+            }
+            p = p->parentWidget();
+        }
+    }
+
     updateAllScreenMarkerScales();
     render();
+}
+
+void vtkPlotBase::moveEvent(QMoveEvent *event)
+{
+    QWidget::moveEvent(event);
+    syncWindow();
+}
+
+void vtkPlotBase::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    syncWindow();
+}
+
+bool vtkPlotBase::eventFilter(QObject *watched, QEvent *event)
+{
+    switch (event->type()) {
+    case QEvent::Scroll:
+    case QEvent::Wheel:
+    case QEvent::Resize:
+    case QEvent::Move:
+    case QEvent::Paint:
+        syncWindow();
+        break;
+    default:
+        break;
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+// ==================== 顶层窗口同步 ====================
+
+void vtkPlotBase::syncWindow()
+{
+    if (!m_overlayWindow) return;
+
+    // 检查顶层窗口是否最小化
+    QWidget *topLevel = window();
+    if (topLevel && topLevel->isMinimized()) {
+        m_overlayWindow->hide();
+        return;
+    }
+
+    // 不可见时隐藏 overlay
+    if (!isVisible() || !m_vtkWidget || size().isEmpty()) {
+        m_overlayWindow->hide();
+        return;
+    }
+
+    // 确保 overlay 可见
+    if (!m_overlayWindow->isVisible())
+        m_overlayWindow->show();
+
+    // 确保独立窗口在主窗口之上（处理 z-order 变化，点击主窗口时 overlay 不会被遮挡）
+    if (topLevel && topLevel->isActiveWindow()) {
+        m_overlayWindow->raise();
+    }
+
+    // 获取自身在屏幕上的全局位置
+    QPoint globalPos = mapToGlobal(QPoint(0, 0));
+    QSize widgetSize = size();
+
+    // 仅在控件尺寸真正变化时才调整 VTK 控件（避免滚动时反复重建 OpenGL 帧缓冲区）
+    static QSize lastVtkSize;
+    if (widgetSize != lastVtkSize) {
+        m_vtkWidget->setGeometry(0, 0, widgetSize.width(), widgetSize.height());
+        lastVtkSize = widgetSize;
+    }
+
+    // 处理 QScrollArea 场景：裁剪到可视区域
+    QScrollArea *scrollArea = nullptr;
+    QWidget *p = parentWidget();
+    while (p) {
+        scrollArea = qobject_cast<QScrollArea*>(p);
+        if (scrollArea) break;
+        p = p->parentWidget();
+    }
+
+    if (scrollArea && scrollArea->viewport()) {
+        QWidget *viewport = scrollArea->viewport();
+        QPoint vpGlobal = viewport->mapToGlobal(QPoint(0, 0));
+        QRect vpRect(vpGlobal, viewport->size());
+        QRect widgetRect(globalPos, widgetSize);
+        QRect visible = widgetRect.intersected(vpRect);
+
+        if (visible.isEmpty()) {
+            m_overlayWindow->hide();
+            return;
+        }
+
+        // overlay 调整到可见区域大小，VTK 控件保持完整尺寸
+        // 无布局管理器，overlay resize 不会触发 VTK 控件 resize
+        m_overlayWindow->move(visible.topLeft());
+        m_overlayWindow->resize(visible.size());
+    } else {
+        m_overlayWindow->move(globalPos);
+        m_overlayWindow->resize(widgetSize);
+    }
 }
 
 // 重写滚轮事件：阻止事件传播到父级滚动区域，同时让 VTK 正常处理缩放
@@ -195,18 +317,31 @@ void vtkPlotBase::wheelEvent(QWheelEvent *event)
 
 void vtkPlotBase::setupVTK()
 {
-    // 创建布局
-    QVBoxLayout *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
-
-    // 创建 VTK Qt 控件
-    m_vtkWidget = new QVTKOpenGLNativeWidget(this);
-    layout->addWidget(m_vtkWidget);
+    // 创建 VTK 控件
+    m_vtkWidget = new QVTKOpenGLNativeWidget();
+    m_vtkWidget->setFormat(QVTKOpenGLNativeWidget::defaultFormat());
 
     // 创建渲染窗口并设置给控件（必须使用 vtkGenericOpenGLRenderWindow）
     vtkSmartPointer<vtkGenericOpenGLRenderWindow> renderWindow =
         vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New();
     m_vtkWidget->setRenderWindow(renderWindow);
+
+    // 创建独立顶层窗口承载 VTK 控件，避免 QOpenGLWidget 强制父窗口 RHI 切换为 OpenGL
+    // Qt::Window 使其成为独立顶层窗口，不参与主窗口的 widget 合成
+    // Qt::FramelessWindowHint 去掉标题栏，视觉上与嵌入一致
+    m_overlayWindow = new QWidget(nullptr, Qt::Window | Qt::FramelessWindowHint);
+    // 不使用布局管理器，避免 overlay resize 时连锁触发 VTK 控件 resize
+    m_vtkWidget->setParent(m_overlayWindow);
+
+    // 创建布局（自身无 VTK 控件，仅占位）
+    QVBoxLayout *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(0, 0, 0, 0);
+
+    // 位置同步定时器：跟踪父窗口移动、QStackedWidget 页面切换、ScrollArea 滚动等
+    m_syncTimer = new QTimer(this);
+    m_syncTimer->setInterval(16); // 16ms ≈ 60fps，高同步率
+    connect(m_syncTimer, &QTimer::timeout, this, &vtkPlotBase::syncWindow);
+    m_syncTimer->start();
 
     // 创建渲染器
     m_renderer = vtkSmartPointer<vtkRenderer>::New();
@@ -766,7 +901,7 @@ void vtkPlotBase::autoScaleIfNeeded()
 
 void vtkPlotBase::render()
 {
-    if (m_vtkWidget && m_vtkWidget->isValid() && m_vtkWidget->renderWindow()) {
+    if (m_vtkWidget && m_vtkWidget->renderWindow()) {
         m_vtkWidget->renderWindow()->Render();
     }
 }

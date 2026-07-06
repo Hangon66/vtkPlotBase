@@ -19,7 +19,7 @@ isEmpty(VTK_DIR) {
     VTK_DIR = $$(VTK_DIR)
 }
 isEmpty(VTK_DIR) {
-    VTK_DIR = $$PWD/3rdparty/VTK-9.6
+    VTK_DIR = $$PWD/3rdparty/VTK-9.6.0
 }
 
 exists($$VTK_DIR/include/vtk-9.6) {

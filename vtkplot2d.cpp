@@ -22,6 +22,9 @@
 #include <QShowEvent>
 #include <QWheelEvent>
 #include <QKeyEvent>
+#include <QMoveEvent>
+#include <QResizeEvent>
+#include <QScrollArea>
 
 // ==================== 构造函数与析构函数 ====================
 
@@ -37,7 +40,11 @@ vtkPlot2D::vtkPlot2D(QWidget *parent)
 
 vtkPlot2D::~vtkPlot2D()
 {
+    if (m_syncTimer)
+        m_syncTimer->stop();
     clearAll();
+    // overlay 无父对象，需显式删除
+    delete m_overlayWindow;
     delete ui;
 }
 
@@ -46,7 +53,50 @@ vtkPlot2D::~vtkPlot2D()
 void vtkPlot2D::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
+
+    static bool filterInstalled = false;
+    if (!filterInstalled) {
+        QWidget *p = parentWidget();
+        while (p) {
+            if (QScrollArea *sa = qobject_cast<QScrollArea*>(p)) {
+                sa->installEventFilter(this);
+                sa->viewport()->installEventFilter(this);
+                filterInstalled = true;
+                break;
+            }
+            p = p->parentWidget();
+        }
+    }
+
     render();
+}
+
+void vtkPlot2D::moveEvent(QMoveEvent *event)
+{
+    QWidget::moveEvent(event);
+    syncWindow();
+}
+
+void vtkPlot2D::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    syncWindow();
+}
+
+bool vtkPlot2D::eventFilter(QObject *watched, QEvent *event)
+{
+    switch (event->type()) {
+    case QEvent::Scroll:
+    case QEvent::Wheel:
+    case QEvent::Resize:
+    case QEvent::Move:
+    case QEvent::Paint:
+        syncWindow();
+        break;
+    default:
+        break;
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void vtkPlot2D::wheelEvent(QWheelEvent *event)
@@ -88,22 +138,98 @@ bool vtkPlot2D::event(QEvent *event)
 
 void vtkPlot2D::setupVTK()
 {
+    // 创建 VTK 控件
+    m_vtkWidget = new QVTKOpenGLNativeWidget();
+    m_vtkWidget->setFormat(QVTKOpenGLNativeWidget::defaultFormat());
 
-    // 创建布局
+    // 创建独立顶层窗口承载 VTK 控件，避免 QOpenGLWidget 强制父窗口 RHI 切换为 OpenGL
+    m_overlayWindow = new QWidget(nullptr, Qt::Window | Qt::FramelessWindowHint);
+    // 不使用布局管理器，避免 overlay resize 时连锁触发 VTK 控件 resize
+    m_vtkWidget->setParent(m_overlayWindow);
+
+    // 创建布局（自身无 VTK 控件，仅占位）
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    // 创建 VTK Qt 控件
-    m_vtkWidget = new QVTKOpenGLNativeWidget(this);
-    layout->addWidget(m_vtkWidget);
+    // 位置同步定时器
+    m_syncTimer = new QTimer(this);
+    m_syncTimer->setInterval(16); // 16ms ≈ 60fps
+    connect(m_syncTimer, &QTimer::timeout, this, &vtkPlot2D::syncWindow);
+    m_syncTimer->start();
 
     // 创建上下文视图
     m_contextView = vtkSmartPointer<vtkContextView>::New();
-    // 将 vtkWidget 的渲染窗口设置给上下文视图，避免创建多余窗口
     m_contextView->SetRenderWindow(m_vtkWidget->renderWindow());
 
     // 设置默认背景
     m_contextView->GetRenderer()->SetBackground(0.2, 0.2, 0.2);
+}
+
+// ==================== 顶层窗口同步 ====================
+
+void vtkPlot2D::syncWindow()
+{
+    if (!m_overlayWindow) return;
+
+    // 检查顶层窗口是否最小化
+    QWidget *topLevel = window();
+    if (topLevel && topLevel->isMinimized()) {
+        m_overlayWindow->hide();
+        return;
+    }
+
+    if (!isVisible() || !m_vtkWidget || size().isEmpty()) {
+        m_overlayWindow->hide();
+        return;
+    }
+
+    if (!m_overlayWindow->isVisible())
+        m_overlayWindow->show();
+
+    // 确保独立窗口在主窗口之上（处理 z-order 变化，点击主窗口时 overlay 不会被遮挡）
+    if (topLevel && topLevel->isActiveWindow()) {
+        m_overlayWindow->raise();
+    }
+
+    QPoint globalPos = mapToGlobal(QPoint(0, 0));
+    QSize widgetSize = size();
+
+    // 仅在控件尺寸真正变化时才调整 VTK 控件
+    static QSize lastVtkSize;
+    if (widgetSize != lastVtkSize) {
+        m_vtkWidget->setGeometry(0, 0, widgetSize.width(), widgetSize.height());
+        lastVtkSize = widgetSize;
+    }
+
+    // 处理 QScrollArea 场景：裁剪到可视区域
+    QScrollArea *scrollArea = nullptr;
+    QWidget *p = parentWidget();
+    while (p) {
+        scrollArea = qobject_cast<QScrollArea*>(p);
+        if (scrollArea) break;
+        p = p->parentWidget();
+    }
+
+    if (scrollArea && scrollArea->viewport()) {
+        QWidget *viewport = scrollArea->viewport();
+        QPoint vpGlobal = viewport->mapToGlobal(QPoint(0, 0));
+        QRect vpRect(vpGlobal, viewport->size());
+        QRect widgetRect(globalPos, widgetSize);
+        QRect visible = widgetRect.intersected(vpRect);
+
+        if (visible.isEmpty()) {
+            m_overlayWindow->hide();
+            return;
+        }
+
+        // overlay 调整到可见区域大小，VTK 控件保持完整尺寸
+        // 无布局管理器，overlay resize 不会触发 VTK 控件 resize
+        m_overlayWindow->move(visible.topLeft());
+        m_overlayWindow->resize(visible.size());
+    } else {
+        m_overlayWindow->move(globalPos);
+        m_overlayWindow->resize(widgetSize);
+    }
 }
 
 // ==================== 图表标题操作 ====================
@@ -242,7 +368,7 @@ void vtkPlot2D::clearAll()
 
 void vtkPlot2D::render()
 {
-    if (m_vtkWidget && m_vtkWidget->isValid() && m_vtkWidget->renderWindow()) {
+    if (m_vtkWidget && m_vtkWidget->renderWindow()) {
         m_vtkWidget->renderWindow()->Render();
     }
 }

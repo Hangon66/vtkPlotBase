@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QVBoxLayout>
+#include <QTimer>
 #include <QMap>
 #include <QVector3D>
 #include <QColor>
@@ -92,7 +93,10 @@ public:
     ~vtkPlotBase();
 
 protected:
-    void showEvent(QShowEvent *event) override;    // 窗口显示事件
+    void showEvent(QShowEvent *event) override;
+    void moveEvent(QMoveEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
     /**
      * @brief 重写滚轮事件处理。
@@ -268,6 +272,8 @@ private:
 
     // VTK 组件
     QVTKOpenGLNativeWidget *m_vtkWidget;                    // VTK Qt 控件
+    QWidget *m_overlayWindow;                               // VTK 独立顶层窗口（不参与主窗口 RHI 合成）
+    QTimer *m_syncTimer;                                    // 位置同步定时器
     vtkSmartPointer<vtkRenderer> m_renderer;                // 渲染器
     vtkSmartPointer<vtkCubeAxesActor> m_cubeAxesActor;      // 三维坐标轴演员
     vtkSmartPointer<vtkLegendBoxActor> m_legendActor;       // 图例演员
@@ -359,6 +365,7 @@ private:
 
     // 初始化和配置
     void setupVTK();                                        // 初始化 VTK
+    void syncWindow();                                      // 同步顶层窗口位置与尺寸
     void createAxes();                                      // 创建坐标轴
     void createLegend();                                    // 创建图例
     void createScalarBar();                                 // 创建颜色条

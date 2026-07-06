@@ -5,7 +5,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++17
 
 # VTK Configuration
-VTK_DIR = $$PWD/3rdparty/VTK-9.6
+VTK_DIR = $$PWD/3rdparty/VTK-9.6.0
 
 INCLUDEPATH += $$VTK_DIR/include/vtk-9.6
 

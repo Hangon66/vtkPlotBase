@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QVBoxLayout>
+#include <QTimer>
 #include <QMap>
 #include <QColor>
 
@@ -58,6 +59,9 @@ protected:
      * @param event 显示事件对象
      */
     void showEvent(QShowEvent *event) override;
+    void moveEvent(QMoveEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
     /**
      * @brief 重写滚轮事件处理。
@@ -228,7 +232,9 @@ private:
     Ui::vtkPlot2D *ui;
 
     // VTK 组件
-    QVTKOpenGLNativeWidget *m_vtkWidget;                        ///< VTK Qt 控件
+    QVTKOpenGLNativeWidget *m_vtkWidget;                        ///\< VTK Qt 控件
+    QWidget *m_overlayWindow;                                   ///\< VTK 独立顶层窗口（不参与主窗口 RHI 合成）
+    QTimer *m_syncTimer;                                        ///\< 位置同步定时器
     vtkSmartPointer<vtkContextView> m_contextView;               ///< 上下文视图
 
     // 对象集合
@@ -236,6 +242,7 @@ private:
 
     // 初始化方法
     void setupVTK();                                             ///< 初始化 VTK
+    void syncWindow();                                           ///< 同步顶层窗口位置与尺寸
 
     /**
      * @brief 渲染场景
