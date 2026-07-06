@@ -3,6 +3,7 @@
 
 // drawable 类
 #include "drawable/vtkheatmap2d.h"
+#include "drawable/vtkhistogram.h"
 #include "drawable/vtkmarkergroup2d.h"
 
 // VTK Qt 头文件
@@ -12,12 +13,21 @@
 #include <vtkRenderWindow.h>
 #include <vtkRenderer.h>
 #include <vtkContextView.h>
+#include <vtkContextInteractorStyle.h>
 #include <vtkChartHistogram2D.h>
 #include <vtkAxis.h>
 #include <vtkColorLegend.h>
 #include <vtkBrush.h>
 #include <vtkNamedColors.h>
 #include <vtkTextProperty.h>
+#include <vtkChartXY.h>
+#include <vtkChart.h>
+#include <vtkChartLegend.h>
+#include <vtkPlotArea.h>
+#include <vtkPlotLine.h>
+#include <vtkPen.h>
+#include <vtkTable.h>
+#include <vtkFloatArray.h>
 
 #include <QShowEvent>
 #include <QWheelEvent>
@@ -32,6 +42,7 @@ vtkPlot2D::vtkPlot2D(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::vtkPlot2D)
     , m_vtkWidget(nullptr)
+    , m_interactionEnabled(false)
 {
     ui->setupUi(this);
     setFocusPolicy(Qt::StrongFocus);  // 确保可接收键盘事件
@@ -114,6 +125,9 @@ void vtkPlot2D::keyPressEvent(QKeyEvent *event)
                 heatmap->chart()->RecalculateBounds();
             }
         }
+        if (m_histogramChart) {
+            m_histogramChart->RecalculateBounds();
+        }
         render();
         return;
     }
@@ -163,6 +177,9 @@ void vtkPlot2D::setupVTK()
 
     // 设置默认背景
     m_contextView->GetRenderer()->SetBackground(0.2, 0.2, 0.2);
+
+    // 默认禁用交互（不可平移/缩放）
+    setInteractionEnabled(false);
 }
 
 // ==================== 顶层窗口同步 ====================
@@ -246,6 +263,24 @@ void vtkPlot2D::setBackground(const QColor &color)
         m_contextView->GetRenderer()->SetBackground(
             color.redF(), color.greenF(), color.blueF());
         render();
+    }
+}
+
+void vtkPlot2D::setInteractionEnabled(bool enabled)
+{
+    m_interactionEnabled = enabled;
+    if (!m_contextView) return;
+
+    auto *interactor = m_contextView->GetInteractor();
+    if (!interactor) return;
+
+    if (enabled) {
+        // 恢复默认上下文交互样式（平移、缩放）
+        vtkNew<vtkContextInteractorStyle> style;
+        interactor->SetInteractorStyle(style);
+    } else {
+        // 设置为空样式，禁用所有鼠标交互
+        interactor->SetInteractorStyle(nullptr);
     }
 }
 
@@ -361,6 +396,150 @@ void vtkPlot2D::clearMarkerGroups(vtkHeatmap2D *heatmap)
 void vtkPlot2D::clearAll()
 {
     clearAllHeatmap2D();
+    clearAllHistograms();
+}
+
+// ==================== 概率分布直方图操作 ====================
+
+vtkHistogram* vtkPlot2D::addHistogram(const QVector<double> &data, int numBins,
+                                       const QColor &color, const QString &name)
+{
+    // 首次调用时创建共享图表并配置样式
+    if (!m_histogramChart) {
+        m_histogramChart = vtkSmartPointer<vtkChartXY>::New();
+        m_contextView->GetScene()->AddItem(m_histogramChart);
+
+        // 配置坐标轴字体（白色 + 中文字体）
+        for (int i = 0; i < 4; ++i) {
+            vtkAxis *axis = m_histogramChart->GetAxis(i);
+            if (axis) {
+                axis->GetTitleProperties()->SetColor(1.0, 1.0, 1.0);
+                axis->GetTitleProperties()->SetFontSize(14);
+                axis->GetTitleProperties()->SetBold(1);
+                vtkTextProperty *tp = axis->GetTitleProperties();
+                tp->SetFontFamily(VTK_FONT_FILE);
+                tp->SetFontFile("C:/Windows/Fonts/msyh.ttc");
+                axis->GetLabelProperties()->SetColor(1.0, 1.0, 1.0);
+                axis->GetLabelProperties()->SetFontSize(12);
+                vtkTextProperty *lp = axis->GetLabelProperties();
+                lp->SetFontFamily(VTK_FONT_FILE);
+                lp->SetFontFile("C:/Windows/Fonts/msyh.ttc");
+            }
+        }
+
+        // 默认轴标题
+        m_histogramChart->GetAxis(vtkAxis::BOTTOM)->SetTitle("Value");
+        m_histogramChart->GetAxis(vtkAxis::LEFT)->SetTitle("Frequency");
+
+        // 默认图表标题
+        m_histogramChart->SetTitle("Histogram");
+        m_histogramChart->GetTitleProperties()->SetColor(1.0, 1.0, 1.0);
+        m_histogramChart->GetTitleProperties()->SetFontSize(18);
+        m_histogramChart->GetTitleProperties()->SetBold(1);
+        vtkTextProperty *ttp = m_histogramChart->GetTitleProperties();
+        ttp->SetFontFamily(VTK_FONT_FILE);
+        ttp->SetFontFile("C:/Windows/Fonts/msyh.ttc");
+
+        // 显示图例
+        m_histogramChart->SetShowLegend(true);
+        if (m_histogramChart->GetLegend()) {
+            vtkTextProperty *legendProp = m_histogramChart->GetLegend()->GetLabelProperties();
+            legendProp->SetFontFamily(VTK_FONT_FILE);
+            legendProp->SetFontFile("C:/Windows/Fonts/msyh.ttc");
+        }
+    }
+
+    // 创建直方图面积图（添加到共享图表）
+    vtkHistogram *histogram = new vtkHistogram(m_histogramChart, data, numBins, color, name);
+    histogram->addToView(m_contextView);
+    m_histograms.append(histogram);
+    render();
+    return histogram;
+}
+
+void vtkPlot2D::setHistogramVisible(vtkHistogram *histogram, bool visible)
+{
+    if (histogram) {
+        histogram->setVisible(visible);
+    }
+}
+
+void vtkPlot2D::removeHistogram(vtkHistogram *histogram)
+{
+    if (histogram) {
+        delete histogram;  // 析构函数会从图表移除面积图
+        m_histograms.removeAll(histogram);
+        render();
+    }
+}
+
+void vtkPlot2D::clearAllHistograms()
+{
+    for (auto histogram : m_histograms) {
+        delete histogram;
+    }
+    m_histograms.clear();
+
+    // 从场景移除共享图表并释放
+    if (m_histogramChart) {
+        m_contextView->GetScene()->RemoveItem(m_histogramChart);
+        m_histogramChart = nullptr;
+    }
+    render();
+}
+
+QList<vtkHistogram*> vtkPlot2D::getHistograms() const
+{
+    return m_histograms;
+}
+
+void vtkPlot2D::addHistogramRefLine(double xValue, const QColor &color, double width,
+                                     const QString &label)
+{
+    if (!m_histogramChart || m_histograms.isEmpty()) return;
+
+    // 从所有直方图数据中获取最大频率值
+    double maxY = 0.0;
+    for (auto *h : m_histograms) {
+        double mf = h->maxFrequency();
+        if (mf > maxY) maxY = mf;
+    }
+    if (maxY <= 0.0) maxY = 1.0;
+
+    // 创建参考线数据表（两个点构成垂直线）
+    vtkSmartPointer<vtkTable> refTable = vtkSmartPointer<vtkTable>::New();
+    vtkSmartPointer<vtkFloatArray> xArr = vtkSmartPointer<vtkFloatArray>::New();
+    xArr->SetName("x");
+    xArr->SetNumberOfValues(2);
+    xArr->SetValue(0, static_cast<float>(xValue));
+    xArr->SetValue(1, static_cast<float>(xValue));
+    refTable->AddColumn(xArr);
+
+    vtkSmartPointer<vtkFloatArray> yArr = vtkSmartPointer<vtkFloatArray>::New();
+    yArr->SetName("y");
+    yArr->SetNumberOfValues(2);
+    yArr->SetValue(0, 0.0f);
+    yArr->SetValue(1, static_cast<float>(maxY));
+    refTable->AddColumn(yArr);
+
+    // 添加线型图
+    vtkPlot *plot = m_histogramChart->AddPlot(vtkChart::LINE);
+    if (plot) {
+        plot->SetInputData(refTable, 0, 1);
+        if (plot->GetPen()) {
+            plot->GetPen()->SetColorF(color.redF(), color.greenF(), color.blueF(), 1.0);
+            plot->GetPen()->SetWidth(width);
+            plot->GetPen()->SetLineType(vtkPen::DASH_LINE);
+        }
+        plot->SetSelectable(false);
+        // 设置图例标签，为空时不在图例中显示
+        if (!label.isEmpty()) {
+            plot->SetLabel(label.toUtf8().constData());
+        } else {
+            plot->SetLegendVisibility(false);
+        }
+    }
+    render();
 }
 
 // ==================== 渲染 ====================

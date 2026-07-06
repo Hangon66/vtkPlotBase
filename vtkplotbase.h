@@ -130,7 +130,16 @@ public:
 
     void setGridVisible(bool visible);                                                               // 设置网格可见性
     void setBackground(const QColor &color);                                                          // 设置背景颜色
-    void setAutoScaleMode(AutoScaleMode mode);                                                        // 设置自适应缩放模式
+    /**
+     * @brief 设置自适应缩放模式。
+     *
+     * 必须在添加数据（addSurface/addCurve/addHeatmapSurface 等）之前调用。
+     * StretchFill 模式会在数据添加时将几何体坐标归一化到 [0,1]，
+     * 若在添加数据后切换模式，已有几何体不会被重新归一化，导致显示异常。
+     *
+     * @param mode 缩放模式（None/Independent/EqualRatio/StretchFill）。
+     */
+    void setAutoScaleMode(AutoScaleMode mode);
     AutoScaleMode autoScaleMode() const;                                                             // 获取当前自适应缩放模式
     void autoFit();                                                                                  // 自适应所有数据
     void resetView();                                                                                // 重置相机到默认视角

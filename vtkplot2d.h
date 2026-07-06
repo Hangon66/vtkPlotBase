@@ -16,9 +16,12 @@ class QVTKOpenGLNativeWidget;
 class vtkGenericOpenGLRenderWindow;
 class vtkChartHistogram2D;
 class vtkColorTransferFunction;
+class vtkChartXY;
+class vtkTextProperty;
 
 // 前向声明 drawable 类
 class vtkHeatmap2D;
+class vtkHistogram;
 class vtkMarkerGroup2D;
 
 // 标记样式枚举定义在 vtkmarkergroup2d.h 中
@@ -104,6 +107,23 @@ public:
      * @param color 背景颜色
      */
     void setBackground(const QColor &color);
+
+    // ===== 交互控制 =====
+
+    /**
+     * @brief 设置是否允许鼠标交互（拖拽平移、滚轮缩放）
+     *
+     * 默认禁用交互，视图固定不可移动。启用后可进行平移和缩放操作。
+     *
+     * @param enabled true=启用交互，false=禁用交互
+     */
+    void setInteractionEnabled(bool enabled);
+
+    /**
+     * @brief 查询当前交互状态
+     * @return bool 是否允许交互
+     */
+    bool isInteractionEnabled() const { return m_interactionEnabled; }
 
     // ===== 坐标轴操作 =====
 
@@ -213,6 +233,62 @@ public:
      */
     void clearMarkerGroups(vtkHeatmap2D *heatmap);
 
+    // ===== 概率分布直方图操作 =====
+
+    /**
+     * @brief 添加概率分布直方图
+     *
+     * 对输入的标量数据进行等宽分箱，统计频次并以柱状图展示。
+     *
+     * @param data 原始标量数据
+     * @param numBins 分箱数量，默认 50
+     * @param color 柱状图颜色，默认青色
+     * @param name 图表名称（用于图例显示），默认为空
+     * @return vtkHistogram* 直方图对象指针
+     */
+    vtkHistogram* addHistogram(const QVector<double> &data, int numBins = 50,
+                               const QColor &color = Qt::cyan,
+                               const QString &name = "");
+
+    /**
+     * @brief 设置直方图可见性
+     * @param histogram 直方图对象
+     * @param visible 是否可见
+     */
+    void setHistogramVisible(vtkHistogram *histogram, bool visible);
+
+    /**
+     * @brief 移除直方图
+     * @param histogram 直方图对象
+     */
+    void removeHistogram(vtkHistogram *histogram);
+
+    /**
+     * @brief 清除所有直方图
+     */
+    void clearAllHistograms();
+
+    /**
+     * @brief 获取所有直方图
+     * @return QList<vtkHistogram*> 直方图列表
+     */
+    QList<vtkHistogram*> getHistograms() const;
+
+    /**
+     * @brief 在直方图表中添加垂直参考线
+     *
+     * 在指定的 x 坐标处绘制一条垂直虚线，用于标记参考位置。
+     *
+     * @param xValue x 坐标值
+     * @param color 线条颜色（默认红色）
+     * @param width 线条宽度（默认 2.0）
+     * @param label 图例名称（为空时不在图例中显示）
+     */
+    void addHistogramRefLine(double xValue,
+                              const QColor &color = QColor(255, 0, 0),
+                              double width = 2.0,
+                              const QString &label = "");
+
     // ===== 清除所有 =====
 
     /**
@@ -237,9 +313,12 @@ private:
     QTimer *m_syncTimer;                                        ///< 位置同步定时器
     QSize m_lastVtkSize;                                        ///< 上一次 VTK 控件尺寸（去重 resize）
     vtkSmartPointer<vtkContextView> m_contextView;               ///< 上下文视图
+    bool m_interactionEnabled;                                   ///< 是否允许鼠标交互（默认 false）
 
     // 对象集合
     QList<vtkHeatmap2D*> m_heatmap2Ds;                           ///< 二维热力图列表
+    QList<vtkHistogram*> m_histograms;                            ///< 概率分布直方图序列列表
+    vtkSmartPointer<vtkChartXY> m_histogramChart;                   ///< 共享图表（vtkChartXY，包含所有面积图）
 
     // 初始化方法
     void setupVTK();                                             ///< 初始化 VTK

@@ -1066,6 +1066,9 @@ void vtkPlotBase::setBackground(const QColor &color)
     render();
 }
 
+// 注意：必须在添加数据之前调用。
+// StretchFill 模式在 addSurface/addCurve 等内部将几何体坐标归一化到 [0,1]，
+// 若已有数据再切换模式，已存储的几何体不会被重新归一化。
 void vtkPlotBase::setAutoScaleMode(AutoScaleMode mode)
 {
     m_autoScaleMode = mode;

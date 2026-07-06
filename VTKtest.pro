@@ -64,6 +64,7 @@ SOURCES += \
     drawable/vtksurface.cpp \
     drawable/vtkheatmap.cpp \
     drawable/vtkheatmap2d.cpp \
+    drawable/vtkhistogram.cpp \
     drawable/vtkmarkergroup2d.cpp
 
 HEADERS += \
@@ -76,6 +77,7 @@ HEADERS += \
     drawable/vtksurface.h \
     drawable/vtkheatmap.h \
     drawable/vtkheatmap2d.h \
+    drawable/vtkhistogram.h \
     drawable/vtkmarkergroup2d.h
 
 FORMS += \
