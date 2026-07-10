@@ -255,15 +255,6 @@ void vtkPlotBase::syncWindow()
         return;
     }
 
-    // 确保 overlay 可见
-    if (!m_overlayWindow->isVisible())
-        m_overlayWindow->show();
-
-    // 确保独立窗口在主窗口之上（处理 z-order 变化，点击主窗口时 overlay 不会被遮挡）
-    if (topLevel && topLevel->isActiveWindow()) {
-        m_overlayWindow->raise();
-    }
-
     // 获取自身在屏幕上的全局位置
     QPoint globalPos = mapToGlobal(QPoint(0, 0));
     QSize widgetSize = size();
@@ -274,7 +265,9 @@ void vtkPlotBase::syncWindow()
         m_lastVtkSize = widgetSize;
     }
 
-    // 处理 QScrollArea 场景：裁剪到可视区域
+    // ---- 前置检查：QScrollArea 可见性 ----
+    // 在 show/raise 之前判断是否在 viewport 可视区域内，
+    // 避免 overlay 反复 show→raise→hide 窃取窗口激活状态
     QScrollArea *scrollArea = nullptr;
     QWidget *p = parentWidget();
     while (p) {
@@ -282,6 +275,8 @@ void vtkPlotBase::syncWindow()
         if (scrollArea) break;
         p = p->parentWidget();
     }
+
+    QRect targetRect;  // overlay 最终应放置的屏幕矩形
 
     if (scrollArea && scrollArea->viewport()) {
         QWidget *viewport = scrollArea->viewport();
@@ -291,18 +286,27 @@ void vtkPlotBase::syncWindow()
         QRect visible = widgetRect.intersected(vpRect);
 
         if (visible.isEmpty()) {
+            // 控件完全在 viewport 可视区域之外，保持 overlay 隐藏，不执行 show/raise
             m_overlayWindow->hide();
             return;
         }
-
-        // overlay 调整到可见区域大小，VTK 控件保持完整尺寸
-        // 无布局管理器，overlay resize 不会触发 VTK 控件 resize
-        m_overlayWindow->move(visible.topLeft());
-        m_overlayWindow->resize(visible.size());
+        targetRect = visible;
     } else {
-        m_overlayWindow->move(globalPos);
-        m_overlayWindow->resize(widgetSize);
+        targetRect = QRect(globalPos, widgetSize);
     }
+
+    // ---- 通过可见性检查后，才 show/raise overlay ----
+    if (!m_overlayWindow->isVisible())
+        m_overlayWindow->show();
+
+    // 确保独立窗口在主窗口之上（处理 z-order 变化，点击主窗口时 overlay 不会被遮挡）
+    if (topLevel && topLevel->isActiveWindow()) {
+        m_overlayWindow->raise();
+    }
+
+    // 设置 overlay 位置与尺寸
+    m_overlayWindow->move(targetRect.topLeft());
+    m_overlayWindow->resize(targetRect.size());
 }
 
 // 重写滚轮事件：阻止事件传播到父级滚动区域，同时让 VTK 正常处理缩放
