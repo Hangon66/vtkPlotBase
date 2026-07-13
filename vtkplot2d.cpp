@@ -358,6 +358,18 @@ void vtkPlot2D::clearAllHeatmap2D()
     render();
 }
 
+void vtkPlot2D::setHeatmap2DDiscreteColorMap(vtkHeatmap2D *heatmap, const QVector<QColor> &colors)
+{
+    if (heatmap)
+        heatmap->setDiscreteColorMap(colors);
+}
+
+void vtkPlot2D::setHeatmap2DColorBarVisible(vtkHeatmap2D *heatmap, bool visible)
+{
+    if (heatmap)
+        heatmap->setColorBarVisible(visible);
+}
+
 QList<vtkHeatmap2D*> vtkPlot2D::getHeatmap2Ds() const
 {
     return m_heatmap2Ds;

@@ -188,6 +188,29 @@ public:
      */
     QList<vtkHeatmap2D*> getHeatmap2Ds() const;
 
+    /**
+     * @brief 设置二维热力图的离散颜色映射表
+     *
+     * 将连续渐变色表替换为离散颜色列表，适用于二值图（如二维码）或分类数据。
+     * 颜色按值域等分映射：第 i 个颜色对应值域 [i/N, (i+1)/N)。
+     *
+     * 典型用法（二维码）：
+     * @code
+     * plot.setHeatmap2DDiscreteColorMap(heatmap, {Qt::white, Qt::black});
+     * @endcode
+     *
+     * @param heatmap 热力图对象
+     * @param colors 离散颜色列表，按值域从低到高排列，至少 2 个
+     */
+    void setHeatmap2DDiscreteColorMap(vtkHeatmap2D *heatmap, const QVector<QColor> &colors);
+
+    /**
+     * @brief 设置二维热力图颜色条的可见性
+     * @param heatmap 热力图对象
+     * @param visible true 显示颜色条，false 隐藏颜色条
+     */
+    void setHeatmap2DColorBarVisible(vtkHeatmap2D *heatmap, bool visible);
+
     // ===== 标记组操作 =====
 
     /**

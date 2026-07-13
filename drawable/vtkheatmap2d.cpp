@@ -248,6 +248,37 @@ void vtkHeatmap2D::setYAxisTitle(const QString &title)
     }
 }
 
+void vtkHeatmap2D::setDiscreteColorMap(const QVector<QColor> &colors)
+{
+    if (colors.size() < 2 || !m_transferFunction) return;
+
+    m_transferFunction->RemoveAllPoints();
+
+    int n = colors.size();
+    for (int i = 0; i < n; ++i) {
+        double valStart = static_cast<double>(i) / n;
+        double valEnd = static_cast<double>(i + 1) / n;
+        double r = colors[i].redF();
+        double g = colors[i].greenF();
+        double b = colors[i].blueF();
+        // 每个色段起始点与结束点（微小偏移产生离散跳变，无渐变）
+        m_transferFunction->AddRGBPoint(valStart, r, g, b);
+        m_transferFunction->AddRGBPoint(valEnd - 1e-6, r, g, b);
+    }
+
+    m_transferFunction->Build();
+    m_chart->SetTransferFunction(m_transferFunction);
+    render();
+}
+
+void vtkHeatmap2D::setColorBarVisible(bool visible)
+{
+    if (m_chart && m_chart->GetLegend()) {
+        m_chart->GetLegend()->SetVisible(visible);
+        render();
+    }
+}
+
 // ==================== 标记组操作 ====================
 
 vtkMarkerGroup2D* vtkHeatmap2D::addMarkerGroup(const QString &name,

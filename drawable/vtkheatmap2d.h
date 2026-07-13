@@ -145,6 +145,28 @@ public:
      */
     void setYAxisTitle(const QString &title);
 
+    /**
+     * @brief 设置离散颜色映射表。
+     *
+     * 将连续色表替换为离散颜色列表，适用于二值图（如二维码）或分类数据。
+     * 颜色按值域等分映射：第 i 个颜色对应值域 [i/N, (i+1)/N)，
+     * 其中 N 为颜色数量。
+     *
+     * 典型用法（二值图）：
+     * @code
+     * heatmap->setDiscreteColorMap({Qt::white, Qt::black});  // 0=白, 1=黑
+     * @endcode
+     *
+     * @param colors 离散颜色列表，按值域从低到高排列，至少 2 个颜色。
+     */
+    void setDiscreteColorMap(const QVector<QColor> &colors);
+
+    /**
+     * @brief 设置颜色条（色标图例）的可见性。
+     * @param visible true 显示颜色条，false 隐藏颜色条。
+     */
+    void setColorBarVisible(bool visible);
+
     // ===== 标记组操作 =====
 
     /**
