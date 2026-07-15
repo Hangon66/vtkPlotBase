@@ -1,92 +1,12 @@
-QT       += core gui opengl openglwidgets
-
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-
-CONFIG += c++17
-
-# VTK Configuration
-VTK_DIR = $$PWD/3rdparty/VTK-9.6.0
-
-INCLUDEPATH += $$VTK_DIR/include/vtk-9.6
-
-LIBS += -L$$VTK_DIR/lib
-LIBS += -lvtkCommonCore-9.6
-LIBS += -lvtkCommonDataModel-9.6
-LIBS += -lvtkCommonExecutionModel-9.6
-LIBS += -lvtkCommonMath-9.6
-LIBS += -lvtkCommonMisc-9.6
-LIBS += -lvtkCommonTransforms-9.6
-LIBS += -lvtkCommonColor-9.6
-LIBS += -lvtkRenderingCore-9.6
-LIBS += -lvtkRenderingOpenGL2-9.6
-LIBS += -lvtkRenderingAnnotation-9.6
-LIBS += -lvtkRenderingContext2D-9.6
-LIBS += -lvtkRenderingContextOpenGL2-9.6
-LIBS += -lvtkChartsCore-9.6
-LIBS += -lvtkViewsContext2D-9.6
-LIBS += -lvtkRenderingFreeType-9.6
-LIBS += -lvtkInteractionStyle-9.6
-LIBS += -lvtkFiltersCore-9.6
-LIBS += -lvtkFiltersSources-9.6
-LIBS += -lvtkFiltersGeneral-9.6
-LIBS += -lvtkGUISupportQt-9.6
-LIBS += -lvtksys-9.6
-
-# 自动复制 VTK DLL 文件到输出目录
-win32 {
-    # 构建后复制 VTK DLL 到输出目录
-    VTK_BIN_DIR = $$VTK_DIR/bin
-    
-    CONFIG(debug, debug|release) {
-        BUILD_DIR = $$OUT_PWD/debug
-    } else {
-        BUILD_DIR = $$OUT_PWD/release
-    }
-    
-    # 转换路径为 Windows 格式
-    VTK_BIN_WIN = $$shell_path($$VTK_BIN_DIR)
-    BUILD_WIN = $$shell_path($$BUILD_DIR)
-    
-    # 复制所有 DLL 文件
-    QMAKE_POST_LINK += cmd /c xcopy /Y /Q "$$VTK_BIN_WIN\*.dll" "$$BUILD_WIN" $$escape_expand(\n)
-}
+# 引入 vtkchart 图表库（包含 VTK 配置、源文件、头文件、UI 等）
+include(vtkchart.pri)
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-SOURCES += \
-    main.cpp \
-    vtkplotbase.cpp \
-    vtkplot2d.cpp \
-    drawable/vtkcurve.cpp \
-    drawable/vtkmarker.cpp \
-    drawable/vtksurface.cpp \
-    drawable/vtkheatmap.cpp \
-    drawable/vtkheatmap2d.cpp \
-    drawable/vtkhistogram.cpp \
-    drawable/vtkmarkergroup2d.cpp \
-    drawable/vtkscatterseries.cpp \
-    drawable/vtklineseries.cpp
-
-HEADERS += \
-    vtkplotbase.h \
-    vtkplot2d.h \
-    drawable/vtkdrawable.h \
-    drawable/vtkchartdrawable.h \
-    drawable/vtkcurve.h \
-    drawable/vtkmarker.h \
-    drawable/vtksurface.h \
-    drawable/vtkheatmap.h \
-    drawable/vtkheatmap2d.h \
-    drawable/vtkhistogram.h \
-    drawable/vtkmarkergroup2d.h \
-    drawable/vtkscatterseries.h \
-    drawable/vtklineseries.h
-
-FORMS += \
-    vtkplotbase.ui \
-    vtkplot2d.ui
+# 项目入口
+SOURCES += main.cpp
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

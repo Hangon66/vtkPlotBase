@@ -184,6 +184,10 @@ void vtkPlot2D::setupVTK()
     // 设置默认背景
     m_contextView->GetRenderer()->SetBackground(0.2, 0.2, 0.2);
 
+    // 按需渲染：交互时限制30fps降低GPU负载，空闲时不渲染
+    m_contextView->GetInteractor()->SetDesiredUpdateRate(30); // 交互时上限30fps
+    m_contextView->GetInteractor()->SetStillUpdateRate(0);    // 静止时不渲染
+
     // 默认禁用交互（不可平移/缩放）
     setInteractionEnabled(false);
 }

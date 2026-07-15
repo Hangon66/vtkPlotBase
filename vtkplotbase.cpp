@@ -383,6 +383,10 @@ void vtkPlotBase::setupVTK()
         vtkSmartPointer<vtkPlotBaseInteractorStyle>::New();
     style->SetPlotBase(this);
     renderWindow->GetInteractor()->SetInteractorStyle(style);
+
+    // 按需渲染：交互时限制30fps降低GPU负载，空闲时不渲染
+    renderWindow->GetInteractor()->SetDesiredUpdateRate(30); // 交互时上限30fps
+    renderWindow->GetInteractor()->SetStillUpdateRate(0);    // 静止时不渲染
 }
 
 void vtkPlotBase::saveDefaultCamera()
